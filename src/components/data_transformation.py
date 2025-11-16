@@ -33,11 +33,11 @@ class DataTransformation:
             Return: None
         """
 
-        # --- Step 1: Read the SVG ---
+        # Read the SVG 
         with open(svg_path, "r", encoding="utf-8") as f:
             svg_data = f.read()
 
-        # --- Step 2: Extract width & height from tags ---
+        #  Extract width & height from tags 
         width_match = re.search(r"<width>(\d+)</width>", svg_data)
         height_match = re.search(r"<height>(\d+)</height>", svg_data)
 
@@ -47,7 +47,7 @@ class DataTransformation:
         width = int(width_match.group(1))
         height = int(height_match.group(1))
 
-        # --- Step 3: Parse XML and add width/height attributes ---
+        #  Parse XML and add width/height attributes
         root = ET.fromstring(svg_data)
         root.set("width", str(width))
         root.set("height", str(height))
@@ -61,14 +61,14 @@ class DataTransformation:
         file_name=os.path.basename(svg_path)
 
 
-        # --- Step 4: Write fixed SVG ---
+        # Write fixed SVG 
         fixed_svg_path = f"{fixed_svg_dir}/{index}/{file_name}"
         fixed_svg_dir=os.path.dirname(fixed_svg_path)
         os.makedirs(fixed_svg_dir,exist_ok=True)
 
         ET.ElementTree(root).write(fixed_svg_path, encoding="utf-8", xml_declaration=True)
 
-        # --- Step 5: Convert to PNG using CairoSVG ---
+        # Convert to PNG using CairoSVG 
         png_path = f"{processed_data_dir}/{index}/{file_name.split('.')[0]}.png"
         processed_data_dir=os.path.dirname(png_path)
         os.makedirs(processed_data_dir,exist_ok=True)

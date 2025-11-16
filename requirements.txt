@@ -3,3 +3,5 @@ torchvision
 cairosvg
 beautifulsoup4
 lxml
+tqdm
+cairosvg

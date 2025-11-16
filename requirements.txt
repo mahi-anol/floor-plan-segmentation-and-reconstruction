@@ -1,0 +1,5 @@
+torch
+torchvision
+cairosvg
+beautifulsoup4
+lxml

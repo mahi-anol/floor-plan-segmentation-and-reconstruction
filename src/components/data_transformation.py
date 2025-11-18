@@ -74,7 +74,7 @@ class DataTransformation:
         os.makedirs(processed_data_dir,exist_ok=True)
 
         cairosvg.svg2png(url=fixed_svg_path, write_to=png_path)
-        shutil.copy(image_path,f"{processed_data_dir}/{index}")
+        shutil.copy(image_path,f"{processed_data_dir}")
 
         # print(f"SVG converted to PNG successfully at {png_path}")
 
@@ -94,8 +94,9 @@ class DataTransformation:
                 if not file1.endswith('.svg'): # file 1 should be always .svg
                     file1,file2=file2,file1
 
-                svg_path=os.path.join(folder_path,file1)
-                image_path=os.path.join(folder_path,file2)
+                svg_path=os.path.join(folder_path,file1).replace('\\','/')
+                image_path=os.path.join(folder_path,file2).replace('\\','/')
+
                 self.svg_to_png_convert(svg_path=svg_path,
                                         image_path=image_path,
                                         fixed_svg_dir=self.data_transformation_config.fixed_train_svg_dir,
@@ -116,10 +117,10 @@ class DataTransformation:
                 svg_path=os.path.join(folder_path,file1)
                 image_path=os.path.join(folder_path,file2)
                 self.svg_to_png_convert(svg_path=svg_path,
-                                    image_path=image_path,
-                                    fixed_svg_dir=self.data_transformation_config.fixed_test_svg_dir,
-                                    processed_data_dir=self.data_transformation_config.processed_test_data_dir,
-                                    index=i)
+                                        image_path=image_path,
+                                        fixed_svg_dir=self.data_transformation_config.fixed_test_svg_dir,
+                                        processed_data_dir=self.data_transformation_config.processed_test_data_dir,
+                                        index=i)
             logging.info("Successfully finished data transformation")
             return DataTransformationConfig.processed_train_data_dir,DataTransformationConfig.processed_test_data_dir
         except Exception as e:

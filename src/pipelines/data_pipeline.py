@@ -4,17 +4,21 @@ from torch.utils.data import Dataset, DataLoader
 from dataclasses import dataclass
 from PIL import Image
 import os
+import json
 import numpy as np
+from src.utils import load_pickle
 
 @dataclass
 class DatasetConfig:
     train_data_path="./artifacts/processed-data/train"
     test_data_path="./artifacts/processed-data/test"
+    class_to_color_mapping_json='./artifacts/processed-data/class_to_color.pkl'
 
 class CVC_FP_dataset(Dataset):
     def __init__(self,dataset_path=None):
         super().__init__()
-        self.image_mask_pair_paths=self.get_image_mask_pair_paths(dataset_path)          
+        self.image_mask_pair_paths=self.get_image_mask_pair_paths(dataset_path)   
+        self.class_to_color_mapping=load_pickle(DatasetConfig.class_to_color_mapping_json)    
 
     @staticmethod
     def get_image_mask_pair_paths(dataset_path=None):
@@ -43,24 +47,22 @@ class CVC_FP_dataset(Dataset):
         image=Image.open(image_path).convert("L")
         mask=Image.open(mask_path).convert("RGB")
         mask_np=np.array(mask)
-
-
-
-        return image,mask,mask_np
+        unique_RGB=set()
+        for x in mask_np:
+            for y in x:
+                unique_RGB.add(tuple(y.tolist()))
+        return image,mask,unique_RGB
     
     def __len__(self):
         return len(self.image_mask_pair_paths)
 
     def __getitem__(self, index):
-        image,mask,mask_np=self.load_image_and_mask(*self.image_mask_pair_paths[index])
-        return image,mask,mask_np
+        image,mask,unique_RGB=self.load_image_and_mask(*self.image_mask_pair_paths[index])
+        return image,mask,unique_RGB
     
 
 if __name__=="__main__":
     dataset=CVC_FP_dataset(DatasetConfig.train_data_path)
-    import matplotlib.pyplot as plt
+    print(dataset[0][2])
 
-    plt.imshow(dataset[0][2])
-    plt.axis("off")
-    plt.show()
 

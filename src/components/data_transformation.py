@@ -8,6 +8,7 @@ import shutil
 from src.exception import CustomException
 from src.logger import logging
 from tqdm import tqdm
+import pickle
 
 @dataclass
 class DataTransformationConfig:
@@ -15,11 +16,15 @@ class DataTransformationConfig:
     raw_test_data_dir: str="./artifacts/raw-data/test"
     fixed_train_svg_dir: str="./artifacts/fixed-data/train"
     fixed_test_svg_dir: str="./artifacts/fixed-data/test"
+    processed_data_base_dir:str = "./artifacts/processed-data"
     processed_train_data_dir:str="./artifacts/processed-data/train"
     processed_test_data_dir:str="./artifacts/processed-data/test"
-
+    class_to_color_mapping_path:str= "./artifacts/processed-data/class_to_color.pkl"
 
 class DataTransformation:
+    # Static Variable for class mapping.
+    color_to_class_mapping={}
+
     def __init__(self):
         self.data_transformation_config=DataTransformationConfig()
 
@@ -30,7 +35,7 @@ class DataTransformation:
         """
             Desc: A function which converts the svg to a png while perserving the original size.
             Args: file_path
-            Return: None
+            Return: None but generates a json file with color to class mapping.
         """
 
         # Read the SVG 
@@ -77,8 +82,15 @@ class DataTransformation:
         shutil.copy(image_path,f"{processed_data_dir}")
 
         # print(f"SVG converted to PNG successfully at {png_path}")
-
-    
+        # Storing color by class mapping 
+        for polygon in root.findall(".//{http://www.w3.org/2000/svg}polygon"):
+            fill = polygon.get("fill")
+            class_name = polygon.get("class")
+            if fill not in DataTransformation.color_to_class_mapping:
+                hex_color = fill.lstrip("#")
+                rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+                DataTransformation.color_to_class_mapping[rgb] = class_name
+            
     def initiate_data_transformation(self):
 
         try:
@@ -121,6 +133,10 @@ class DataTransformation:
                                         fixed_svg_dir=self.data_transformation_config.fixed_test_svg_dir,
                                         processed_data_dir=self.data_transformation_config.processed_test_data_dir,
                                         index=i)
+            
+            with open(file=DataTransformationConfig.class_to_color_mapping_path,mode='wb') as json_file:
+                pickle.dump(DataTransformation.color_to_class_mapping,json_file,protocol=pickle.HIGHEST_PROTOCOL)
+
             logging.info("Successfully finished data transformation")
             return DataTransformationConfig.processed_train_data_dir,DataTransformationConfig.processed_test_data_dir
         except Exception as e:

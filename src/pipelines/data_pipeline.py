@@ -1,24 +1,25 @@
-import torch
-import torch.nn as nn 
 from torch.utils.data import Dataset, DataLoader
 from dataclasses import dataclass
 from PIL import Image
 import os
+import matplotlib.pyplot as plt
 import json
 import numpy as np
 from src.utils import load_pickle
+from scipy.spatial import cKDTree
 
 @dataclass
 class DatasetConfig:
     train_data_path="./artifacts/processed-data/train"
     test_data_path="./artifacts/processed-data/test"
-    class_to_color_mapping_json='./artifacts/processed-data/class_to_color.pkl'
+    class_to_color_mapping_json='./artifacts/processed-data/color_to_class.pkl'
 
 class CVC_FP_dataset(Dataset):
     def __init__(self,dataset_path=None):
         super().__init__()
         self.image_mask_pair_paths=self.get_image_mask_pair_paths(dataset_path)   
-        self.class_to_color_mapping=load_pickle(DatasetConfig.class_to_color_mapping_json)    
+        self.color_to_class_mapping=load_pickle(DatasetConfig.class_to_color_mapping_json) 
+        self.color_to_id_mapping={color:id for id,color in enumerate(self.color_to_class_mapping.keys(),0)}   
 
     @staticmethod
     def get_image_mask_pair_paths(dataset_path=None):
@@ -37,32 +38,52 @@ class CVC_FP_dataset(Dataset):
             
             files[0]=os.path.join(folder_of_pair,files[0]).replace('\\','/')
             files[1]=os.path.join(folder_of_pair,files[1]).replace('\\','/')
-            
             list_of_image_mask_pair.append((files[0],files[1]))
 
         return list_of_image_mask_pair
     
     @staticmethod
-    def load_image_and_mask(image_path,mask_path):
+    def load_image_and_mask(image_path,mask_path,color_to_class_mapping,color_to_id_mapping):
+        """
+            args:
+                image_path: path to the image
+                mask_path: path to the mask
+                class to color mapping: mappings of class and color.
+            Returns: 
+                original image in numpy, mask
+        """
         image=Image.open(image_path).convert("L")
         mask=Image.open(mask_path).convert("RGB")
         mask_np=np.array(mask)
-        unique_RGB=set()
-        for x in mask_np:
-            for y in x:
-                unique_RGB.add(tuple(y.tolist()))
-        return image,mask,unique_RGB
-    
+        unique_colors=color_to_class_mapping.keys()
+        numpyed_unique_color=np.array(list(unique_colors))
+        
+        kd_search_tree=cKDTree(numpyed_unique_color)
+
+        _,points=kd_search_tree.query(mask_np)
+        fixed_mask_from_closest_points=numpyed_unique_color[points]
+        mask_height,mask_width=fixed_mask_from_closest_points.shape[:-1]
+        refined_mask=np.zeros((mask_height,mask_width),dtype=np.int64)
+        
+        for color,id in color_to_id_mapping.items():
+            refined_mask[np.all(fixed_mask_from_closest_points==color,axis=-1)]=id
+        return np.array(image),refined_mask
+        
+
     def __len__(self):
         return len(self.image_mask_pair_paths)
 
     def __getitem__(self, index):
-        image,mask,unique_RGB=self.load_image_and_mask(*self.image_mask_pair_paths[index])
-        return image,mask,unique_RGB
+        image,mask=self.load_image_and_mask(*self.image_mask_pair_paths[index],
+                                            self.color_to_class_mapping,
+                                            self.color_to_id_mapping)
+        return image,mask
     
 
 if __name__=="__main__":
-    dataset=CVC_FP_dataset(DatasetConfig.train_data_path)
-    print(dataset[0][2])
+    train_dataset=CVC_FP_dataset(DatasetConfig.train_data_path)
+    image,mask=train_dataset[0]
+
+    # print(image.shape,mask.shape)
 
 

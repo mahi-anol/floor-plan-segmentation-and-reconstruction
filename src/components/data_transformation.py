@@ -19,11 +19,11 @@ class DataTransformationConfig:
     processed_data_base_dir:str = "./artifacts/processed-data"
     processed_train_data_dir:str="./artifacts/processed-data/train"
     processed_test_data_dir:str="./artifacts/processed-data/test"
-    class_to_color_mapping_path:str= "./artifacts/processed-data/class_to_color.pkl"
+    class_to_color_mapping_path:str= "./artifacts/processed-data/color_to_class.pkl"
 
 class DataTransformation:
     # Static Variable for class mapping.
-    color_to_class_mapping={}
+    color_to_class_mapping={(0,0,0):'Background'}
 
     def __init__(self):
         self.data_transformation_config=DataTransformationConfig()

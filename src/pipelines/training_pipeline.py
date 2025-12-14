@@ -5,8 +5,6 @@ from src.components.data_pipeline import get_train_test_loader
 from src.components.model import get_model
 from tqdm import tqdm
 import torch
-from tqdm import tqdm
-import torch
 import logging
 import os
 from src.utils import saving_model_with_state_and_logs

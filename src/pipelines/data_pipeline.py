@@ -1,4 +1,6 @@
 from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 from dataclasses import dataclass
 from PIL import Image
 import os
@@ -15,11 +17,19 @@ class DatasetConfig:
     class_to_color_mapping_json='./artifacts/processed-data/color_to_class.pkl'
 
 class CVC_FP_dataset(Dataset):
+    img_tf = transforms.Compose([
+        transforms.Resize((224,224)),
+        transforms.ToTensor(),
+    ])
+    mask_tf = transforms.Compose([
+        transforms.Resize((224,224), interpolation=InterpolationMode.NEAREST),
+        transforms.ToTensor(),
+    ])
     def __init__(self,dataset_path=None):
         super().__init__()
         self.image_mask_pair_paths=self.get_image_mask_pair_paths(dataset_path)   
         self.color_to_class_mapping=load_pickle(DatasetConfig.class_to_color_mapping_json) 
-        self.color_to_id_mapping={color:id for id,color in enumerate(self.color_to_class_mapping.keys(),0)}   
+        self.color_to_id_mapping={color:id for id,color in enumerate(self.color_to_class_mapping.keys(),0)} 
 
     @staticmethod
     def get_image_mask_pair_paths(dataset_path=None):
@@ -42,8 +52,8 @@ class CVC_FP_dataset(Dataset):
 
         return list_of_image_mask_pair
     
-    @staticmethod
-    def load_image_and_mask(image_path,mask_path,color_to_class_mapping,color_to_id_mapping):
+    @classmethod
+    def load_image_and_mask(cls,image_path,mask_path,color_to_class_mapping,color_to_id_mapping):
         """
             args:
                 image_path: path to the image
@@ -52,10 +62,11 @@ class CVC_FP_dataset(Dataset):
             Returns: 
                 original image in numpy, mask
         """
-        image=Image.open(image_path).convert("L")
+        image=Image.open(image_path).convert("RGB")
         mask=Image.open(mask_path).convert("RGB")
         mask_np=np.array(mask)
         unique_colors=color_to_class_mapping.keys()
+        # print(unique_colors)
         numpyed_unique_color=np.array(list(unique_colors))
         
         kd_search_tree=cKDTree(numpyed_unique_color)
@@ -66,8 +77,12 @@ class CVC_FP_dataset(Dataset):
         refined_mask=np.zeros((mask_height,mask_width),dtype=np.int64)
         
         for color,id in color_to_id_mapping.items():
-            refined_mask[np.all(fixed_mask_from_closest_points==color,axis=-1)]=id
-        return np.array(image),refined_mask
+            refined_mask[np.all(fixed_mask_from_closest_points==color,axis=-1)]=np.int_(id)
+
+
+        image=cls.img_tf(image)
+        mask=cls.mask_tf(Image.fromarray(refined_mask.astype(np.long))).squeeze(0).long()
+        return image,mask
         
 
     def __len__(self):
@@ -77,13 +92,45 @@ class CVC_FP_dataset(Dataset):
         image,mask=self.load_image_and_mask(*self.image_mask_pair_paths[index],
                                             self.color_to_class_mapping,
                                             self.color_to_id_mapping)
+        # image=self.img_tf(image)
+        # mask=self.mask_tf(image)
         return image,mask
+    
+def get_train_test_loader(batch_size=16):
+    train_dataset=CVC_FP_dataset(DatasetConfig.train_data_path)
+    test_dataset=CVC_FP_dataset(DatasetConfig.test_data_path)
+    train_data_loader=DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=0)
+    test_data_loader=DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=False,num_workers=0)
+    return train_data_loader,test_data_loader
+
     
 
 if __name__=="__main__":
     train_dataset=CVC_FP_dataset(DatasetConfig.train_data_path)
     image,mask=train_dataset[0]
+    # print(mask)
 
-    # print(image.shape,mask.shape)
+    image_np = image.permute(1, 2, 0).cpu().numpy()
+
+
+    mask_np = mask.cpu().numpy()
+
+    print(image_np.shape,mask_np.shape)
+
+    plt.figure(figsize=(8,4))
+
+    plt.subplot(1, 2, 1)
+    plt.imshow(image_np)
+    plt.title("Image")
+    plt.axis("off")
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(mask_np)
+    plt.title("Mask")
+    plt.axis("off")
+
+    plt.show()
+
+    
 
 

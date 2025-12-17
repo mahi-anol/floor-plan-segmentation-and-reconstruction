@@ -12,7 +12,7 @@ class  DataIngestionConfig:
     data_source: str = "./data-source/dataset2/ImagesGT"
     raw_train_data_location:str="./artifacts/raw-data/train"  # The location where the ingested raw data will be saved.
     raw_test_data_location:str="./artifacts/raw-data/test"  # The location where the ingested raw data will be saved.
-    train_test_ratio:int=0.8 # Should be anything between 0.6 - 0.95
+    train_test_ratio:int=0.8 
 
 class DataIngestion:
     def __init__(self):

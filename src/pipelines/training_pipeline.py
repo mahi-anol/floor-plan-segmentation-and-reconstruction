@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import torch
-from src.components.data_pipeline import get_train_test_loader
+from src.pipelines.data_pipeline import get_train_test_loader
 from src.components.model import get_model
 from tqdm import tqdm
 import torch
@@ -35,7 +35,7 @@ def train_step(model,data_loader,loss_fn,optimizer,device):
         batch_loss.backward()
         optimizer.step()
         y_pred=torch.argmax(torch.softmax(logits,dim=1),dim=1)
-        batch_accuracy=(y_pred==Y).sum().item()/len(y_pred)
+        batch_accuracy=(y_pred==Y).sum().item()/y_pred.numel()
         train_accuracy+=batch_accuracy
         bar.set_postfix(batch_loss=f'{batch_loss}',batch_accuracy=f'{batch_accuracy*100}%')
     train_loss=train_loss/len(data_loader)
@@ -53,7 +53,7 @@ def test_step(model,data_loader,loss_fn,device):
             batch_loss=loss_fn(logits,Y)
             test_loss+=batch_loss.item()
             y_pred=torch.argmax(torch.softmax(logits,dim=1),dim=1)
-            batch_accuracy=(y_pred==Y).sum().item()/len(y_pred)
+            batch_accuracy=(y_pred==Y).sum().item()/y_pred.numel()
             test_accuracy+=batch_accuracy
             bar.set_postfix(batch_loss=f'{batch_loss}',batch_accuracy=f'{batch_accuracy*100}%')
         test_accuracy=(test_accuracy/len(data_loader))*100
@@ -107,7 +107,7 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
 # Dataset
 train_dataset_loader,test_dataset_loader=get_train_test_loader()
 # Model
-model=get_model('efficient_b0')
+model=get_model(image_channel=3,number_of_class=8)
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 

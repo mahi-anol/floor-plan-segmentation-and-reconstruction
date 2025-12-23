@@ -2,31 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class ChannelAttention(nn.Module):
-    def __init__(self,in_channels,out_channels,se_ratio=16):
-        super(ChannelAttention,self).__init__()
-        self.conv=nn.Conv2d(in_channels=in_channels,out_channels=out_channels,kernel_size=(1,1),bias=False)
-        self.avg_pool=nn.AdaptiveAvgPool2d(1)
-        self.max_pool=nn.AdaptiveMaxPool2d(1)
-
-        self.fc11=nn.Conv2d(in_channels=out_channels,out_channels=int(out_channels//se_ratio),kernel_size=(1,1),bias=False)
-        self.fc12=nn.Conv2d(in_channels=int(out_channels//se_ratio),out_channels=out_channels,kernel_size=(1,1),bias=False)
-    
-        self.fc21=nn.Conv2d(in_channels=out_channels,out_channels=int(out_channels//se_ratio),kernel_size=(1,1),bias=False)
-        self.fc22=nn.Conv2d(in_channels=int(out_channels//se_ratio),out_channels=out_channels,kernel_size=(1,1),bias=False)
-        self.relu=nn.ReLU(inplace=False)
-        self.sigmoid=nn.Sigmoid()
-
-    
-    def forward(self,x):
-        x=self.conv(x)
-        avg_out=self.fc12(self.relu(self.fc11(self.avg_pool(x))))
-        max_out=self.fc22(self.relu(self.fc11(self.max_pool(x))))
-
-        out=avg_out+max_out
-        # print(out.shape)
-        return x*self.sigmoid(out)
-
 class ACBlock(nn.Module):
     def __init__(self,in_channels,out_channels):
         super(ACBlock,self).__init__()
@@ -42,6 +17,103 @@ class ACBlock(nn.Module):
         x3=self.vertical(x)
         output=self.relu(self.bn(x1+x2+x3))
         return output
+    
+def ChannelAvgPool(x):
+    return x.mean(dim=1,keepdim=True)
+    
+def ChannelMaxPool(x):
+    return x.max(dim=1,keepdim=True)[0]
+
+class SAMBlock(nn.Module):
+    def __init__(self,in_channels):
+        super().__init__()
+        self.conv1=nn.Conv2d(in_channels=in_channels,out_channels=in_channels//2,kernel_size=(1,1),bias=True)
+        self.extract_net1=nn.Sequential(
+            nn.Conv2d(in_channels=2,out_channels=1,kernel_size=(1,1),bias=True)
+            ,nn.Conv2d(in_channels=1,out_channels=1,kernel_size=(3,3),padding=1,bias=True)
+        )
+        self.extract_net2=nn.Sequential(
+            nn.Conv2d(in_channels=2,out_channels=1,kernel_size=(1,1),bias=True)
+            ,nn.Conv2d(in_channels=1,out_channels=1,kernel_size=(3,3),padding=2,dilation=2,bias=True)
+        )
+
+        self.extract_net3=nn.Sequential(
+            nn.Conv2d(in_channels=2,out_channels=1,kernel_size=(1,1),bias=True)
+            ,nn.Conv2d(in_channels=1,out_channels=1,kernel_size=(3,3),padding=3,dilation=3,bias=True)
+        )
+
+    def forward(self,x):
+        # print(x.shape)
+        reduce=self.conv1(x)
+        x1=ChannelAvgPool(x)
+        x2=ChannelMaxPool(x)
+        # print(x1.shape)
+        # print(x2.shape)
+        out=torch.cat([x1,x2],dim=1)
+        ext1=self.extract_net1(out)
+        ext2=self.extract_net2(out)
+        ext3=self.extract_net3(out)
+        out=ext1+ext2+ext3
+        out=F.sigmoid(out)
+        out=reduce*out
+        # print(out.shape)
+        return out
+
+
+
+
+
+
+class CAMBlock(nn.Module):
+    def __init__(self,in_channels):
+        # output ch = input ch/2
+        super().__init__()
+        self.conv1=nn.Conv2d(in_channels=in_channels,out_channels=in_channels//2,kernel_size=(1,1),bias=True)
+
+        self.conv2=nn.Conv2d(in_channels=in_channels//2,out_channels=in_channels//32,kernel_size=(1,1),bias=True)
+        self.conv3=nn.Conv2d(in_channels=in_channels//2,out_channels=in_channels//32,kernel_size=(1,1),bias=True)
+
+        self.conv4=nn.Conv2d(in_channels=in_channels//32,out_channels=in_channels//2,kernel_size=(1,1),bias=True)
+        self.conv5=nn.Conv2d(in_channels=in_channels//32,out_channels=in_channels//2,kernel_size=(1,1),bias=True)
+
+    def forward(self,x):
+        x=self.conv1(x)
+
+        max_out=F.adaptive_max_pool2d(x,(1,1))
+        avg_out=F.adaptive_avg_pool2d(x,(1,1))
+
+        x1=self.conv2(max_out)
+        x2=self.conv3(avg_out)
+
+        x1=self.conv4(x1)
+        x2=self.conv5(x2)
+
+        out=x1+x2
+        out=F.sigmoid(out)
+
+        out=x*out
+        # print(out.shape)
+
+        return out
+        
+
+class Modified_Attention_Block(nn.Module):
+    def __init__(self,in_channels):
+        super().__init__()
+        self.in_channels=in_channels
+        self.CAM=CAMBlock(in_channels=in_channels)
+        self.SAM=SAMBlock(in_channels=in_channels)
+        self.ACB=ACBlock(in_channels=in_channels,out_channels=(in_channels//5)*2)
+    def forward(self,x):
+        x1=self.CAM(x)
+        x2=self.SAM(x)
+        out=torch.cat([x1,x2],dim=1)
+        out=self.ACB(out)
+        # print("Attention Input: ",x.shape)
+        # print("Attention Block Output: ",out.shape)
+        return out
+
+
     
 
 class MULTI_UNIT_FLOOR_SEGMENT_MODEL(nn.Module):
@@ -113,12 +185,17 @@ class MULTI_UNIT_FLOOR_SEGMENT_MODEL(nn.Module):
             ACBlock(channels[4], channels[4]) # 256,14,14
         )
 
-        ## OLD
-        self.skblock4=ChannelAttention(channels[3]*5,channels[3]*2,16)
-        self.skblock3 = ChannelAttention(channels[2]*5, channels[2]*2, 16)
-        self.skblock2 = ChannelAttention(channels[1]*5, channels[1]*2, 16)
-        self.skblock1 = ChannelAttention(channels[0]*5, channels[0]*2, 16)
+        ### OLD
+        # self.skblock4=ChannelAttention(channels[3]*5,channels[3]*2,16)
+        # self.skblock3 = ChannelAttention(channels[2]*5, channels[2]*2, 16)
+        # self.skblock2 = ChannelAttention(channels[1]*5, channels[1]*2, 16)
+        # self.skblock1 = ChannelAttention(channels[0]*5, channels[0]*2, 16)
 
+        ### NEW 
+        self.skblock4=Modified_Attention_Block(channels[3]*5)
+        self.skblock3 =Modified_Attention_Block(channels[2]*5)
+        self.skblock2 = Modified_Attention_Block(channels[1]*5)
+        self.skblock1 = Modified_Attention_Block(channels[0]*5)
         
 
 
@@ -228,12 +305,4 @@ if __name__ == '__main__':
     x = torch.randn(in_batch, inchannel, in_h, in_w)
     net = get_model(3,classe_num)
     out = net(x)
-    print(out.shape)
-
-
-
-
-
-
-
-
+    print("Output Shape: ", out.shape)

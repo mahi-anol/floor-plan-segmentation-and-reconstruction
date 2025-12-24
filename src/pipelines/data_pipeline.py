@@ -82,7 +82,7 @@ class CVC_FP_dataset(Dataset):
 
 
         image=cls.img_tf(image)
-        mask=cls.mask_tf(Image.fromarray(refined_mask.astype(np.long))).squeeze(0).long()
+        mask=cls.mask_tf(Image.fromarray(refined_mask.astype(np.int32))).squeeze(0).long()
         return image,mask
         
 

@@ -10,8 +10,6 @@ import os
 from src.utils import saving_model_with_state_and_logs
 import torch.nn as nn
 import torch.optim as optim
-from components.data_ingestion import DataIngestion
-from components.data_transformation import DataTransformation
 
 # deterministic behavior
 SEED = 42
@@ -22,10 +20,6 @@ torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 ### For changing model config or transferlearn/finetune config ....Need to go to src/model/__init__.py
-
-if not os.path.exists('./artifacts'):
-    DataIngestion.initiate_data_ingestion()
-    DataTransformation.initiate_data_transformation()
 
 # Dataset
 train_dataset_loader,test_dataset_loader=get_train_test_loader()

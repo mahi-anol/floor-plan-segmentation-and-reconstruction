@@ -2,7 +2,7 @@ import random
 import numpy as np
 import torch
 from src.pipelines.data_pipeline import get_train_test_loader
-from src.components.model import get_model
+from src.components.model_mod_3 import get_model
 from tqdm import tqdm
 import torch
 import logging

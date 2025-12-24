@@ -220,7 +220,6 @@ class MULTI_UNIT_FLOOR_SEGMENT_MODEL(nn.Module):
 def get_model(image_channel=3,number_of_class=10):
     net = MULTI_UNIT_FLOOR_SEGMENT_MODEL(image_channel, number_of_class)
     return net
-    
 
 if __name__ == '__main__':
     classe_num = 10

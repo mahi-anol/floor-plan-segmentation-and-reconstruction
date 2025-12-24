@@ -10,6 +10,7 @@ import numpy as np
 from src.utils import load_pickle
 from scipy.spatial import cKDTree
 
+
 @dataclass
 class DatasetConfig:
     train_data_path="./artifacts/processed-data/train"

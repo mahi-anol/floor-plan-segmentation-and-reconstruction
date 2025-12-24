@@ -10,9 +10,11 @@ import os
 from src.utils import saving_model_with_state_and_logs
 import torch.nn as nn
 import torch.optim as optim
+from components.data_ingestion import DataIngestion
+from components.data_transformation import DataTransformation
 
+# deterministic behavior
 SEED = 42
-
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
@@ -20,6 +22,22 @@ torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 ### For changing model config or transferlearn/finetune config ....Need to go to src/model/__init__.py
+
+if not os.path.exists('./artifacts'):
+    DataIngestion.initiate_data_ingestion()
+    DataTransformation.initiate_data_transformation()
+
+# Dataset
+train_dataset_loader,test_dataset_loader=get_train_test_loader()
+# Model
+model=get_model(image_channel=3,number_of_class=8)
+
+device='cuda' if torch.cuda.is_available() else 'cpu'
+
+model.to(device)
+optimizer=optim.Adam(model.parameters(),lr=1e-4,weight_decay=1e-4)
+loss_fn=nn.CrossEntropyLoss()
+
 
 def train_step(model,data_loader,loss_fn,optimizer,device):
     model.train()
@@ -103,17 +121,6 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
 
 
     return results
-
-# Dataset
-train_dataset_loader,test_dataset_loader=get_train_test_loader()
-# Model
-model=get_model(image_channel=3,number_of_class=8)
-
-device='cuda' if torch.cuda.is_available() else 'cpu'
-
-model.to(device)
-optimizer=optim.Adam(model.parameters(),lr=1e-4,weight_decay=1e-4)
-loss_fn=nn.CrossEntropyLoss()
 
 # if __name__=="__main__":
 train(model=model

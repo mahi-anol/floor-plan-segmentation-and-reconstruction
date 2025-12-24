@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class ACBlock(nn.Module):
     def __init__(self,in_channels,out_channels):
         super(ACBlock,self).__init__()
-        self.sqare=nn.Conv2d(in_channels=in_channels,out_channels=out_channels,kernel_size=(3,3),padding=(1,1),stride=(1,1),bias=False) # Original Implementation have bias True
+        self.sqare=nn.Conv2d(in_channels=in_channels,out_channels=out_channels,kernel_size=(3,3),padding=(1,1),stride=(1,1),bias=False) 
         self.horizontal=nn.Conv2d(in_channels=in_channels,out_channels=out_channels,kernel_size=(1,3),padding=(0,1),stride=(1,1),bias=False)
         self.vertical=nn.Conv2d(in_channels=in_channels,out_channels=out_channels,kernel_size=(3,1),padding=(1,0),stride=(1,1),bias=False)
         self.bn=nn.BatchNorm2d(num_features=out_channels)

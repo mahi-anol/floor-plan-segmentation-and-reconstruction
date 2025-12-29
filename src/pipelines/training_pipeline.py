@@ -72,7 +72,28 @@ def test_step(model,data_loader,loss_fn,device):
         test_loss=test_loss/len(data_loader)
     return test_accuracy,test_loss
 
-def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device,checkpoint_saving_gap):
+def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device,checkpoint_saving_gap,resume_from_previous_state):
+
+    ### Loading Prev states
+    logging.info(f"Starting training using : {device}")
+    if resume_from_previous_state:
+        try:
+            checkpoint = torch.load("./checkpoints/cross_entropy_best.pt", map_location=device)
+        except Exception as e:
+            logging.error(f"Encounted following error while loading the previous checkpoint: {e}")
+        
+        if "model" in checkpoint:
+            model.load_state_dict(checkpoint["model"])
+            logging.info("Successfully loaded the weights for best epoch")
+        else:
+            logging.info("Error while loading weights")
+            
+        if "optimizer" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer"])
+            logging.info("Succesfully loaded the optimizer state for best epoch")
+        else:
+            logging.info("Error while loading optimzier state.")
+    ###
 
     best_test_accuracy = -float('inf') 
     best_test_loss=float('inf')
@@ -125,4 +146,5 @@ train(model=model
     ,epochs=20
     ,device=device
     ,checkpoint_saving_gap=1
+    ,resume_from_previous_state=True
     )

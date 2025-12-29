@@ -7,7 +7,7 @@ from tqdm import tqdm
 import torch
 import logging
 import os
-from src.utils import saving_model_with_state_and_logs
+from src.utils import saving_model_with_state_and_logs,MulticlassDiceCELoss
 import torch.nn as nn
 import torch.optim as optim
 
@@ -24,13 +24,14 @@ torch.backends.cudnn.deterministic = True
 # Dataset
 train_dataset_loader,test_dataset_loader=get_train_test_loader()
 # Model
-model=get_model(image_channel=3,number_of_class=8)
+model=get_model(image_channel=3,number_of_class=2)
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
 model.to(device)
 optimizer=optim.Adam(model.parameters(),lr=1e-4,weight_decay=1e-4)
-loss_fn=nn.CrossEntropyLoss()
+# loss_fn=nn.CrossEntropyLoss()
+loss_fn=MulticlassDiceCELoss()
 
 
 def train_step(model,data_loader,loss_fn,optimizer,device):
@@ -146,5 +147,5 @@ train(model=model
     ,epochs=20
     ,device=device
     ,checkpoint_saving_gap=1
-    ,resume_from_previous_state=True
+    ,resume_from_previous_state=False
     )

@@ -253,7 +253,47 @@ def saving_model_with_state_and_logs(model,optimizer,results,file="model.pt"):
         logging.info(f"Succesfully saved the model artifact at {path}")
 
 
+class MulticlassDiceCELoss(nn.Module):
+    def __init__(self, weights=None, ignore_index=None):
+        super(MulticlassDiceCELoss, self).__init__()
+        self.ce = nn.CrossEntropyLoss(weight=weights, ignore_index=ignore_index if ignore_index is not None else -100)
+        self.ignore_index = ignore_index
 
+    def forward(self, logits, targets, smooth=1e-6):
+        """
+        logits: (Batch, C, H, W)
+        targets: (Batch, H, W) -> IDs 0 to C-1
+        """
+        # 1. Categorical Cross Entropy (Works for any number of classes)
+        ce_loss = self.ce(logits, targets)
+
+        # 2. Multiclass Dice Loss
+        num_classes = logits.shape[1]
+        probs = F.softmax(logits, dim=1)
+        
+        # Convert targets to one-hot: (B, H, W) -> (B, C, H, W)
+        # We move the channel dimension to the same position as probs
+        targets_one_hot = F.one_hot(targets, num_classes).permute(0, 3, 1, 2).float()
+
+        dice_loss = 0
+        
+        # Calculate Dice for each class and average them
+        for i in range(num_classes):
+            # Optional: Skip background or specific ignored index
+            if i == self.ignore_index:
+                continue
+                
+            prob = probs[:, i, :, :].reshape(-1)
+            targ = targets_one_hot[:, i, :, :].reshape(-1)
+            
+            intersection = (prob * targ).sum()
+            dice_class = (2. * intersection + smooth) / (prob.sum() + targ.sum() + smooth)
+            dice_loss += (1 - dice_class)
+
+        # Average Dice loss across classes
+        avg_dice_loss = dice_loss / num_classes
+
+        return ce_loss + avg_dice_loss
 if __name__=="__main__":
 
     ## Testing configs.

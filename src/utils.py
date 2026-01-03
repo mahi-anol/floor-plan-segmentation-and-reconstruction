@@ -253,92 +253,79 @@ def saving_model_with_state_and_logs(model,optimizer,results,file="model.pt"):
         logging.info(f"Succesfully saved the model artifact at {path}")
 
 
-class MulticlassDiceCELoss(nn.Module):
-    def __init__(self, weights=None, ignore_index=None):
-        super(MulticlassDiceCELoss, self).__init__()
-        self.ce = nn.CrossEntropyLoss(weight=weights, ignore_index=ignore_index if ignore_index is not None else -100)
-        self.ignore_index = ignore_index
+class four_musquiter_loss(nn.Module):
+    def __init__(self):
+        super().__init__()
+    def forward(self,batch_logits,batch_sample_gt):
+        ### Cross Entropy for segmentation loss
+        # batch_logits=torch.randn(size=(3,10,224,224))
+        print("sample Logit shape: (B,C,H,W) = ",batch_logits.shape)
+        # print("sample Logit : ",batch_logits)
+        # batch_sample_gt=torch.randint(low=0,high=10,size=(3,224,224))
+        print("sample gt shape: (B,H,W) = ",batch_sample_gt.shape)
+        # print("sample gt : ",batch_sample_gt)
 
-    def forward(self, logits, targets, smooth=1e-6):
-        """
-        logits: (Batch, C, H, W)
-        targets: (Batch, H, W) -> IDs 0 to C-1
-        """
-        # 1. Categorical Cross Entropy (Works for any number of classes)
-        ce_loss = self.ce(logits, targets)
+        batch_logits_max=torch.max(batch_logits,dim=2)
+        print("Batch logits: ",batch_logits_max[0].shape)
 
-        # 2. Multiclass Dice Loss
-        num_classes = logits.shape[1]
-        probs = F.softmax(logits, dim=1)
+
+
         
-        # Convert targets to one-hot: (B, H, W) -> (B, C, H, W)
-        # We move the channel dimension to the same position as probs
-        targets_one_hot = F.one_hot(targets, num_classes).permute(0, 3, 1, 2).float()
-
-        dice_loss = 0
-        
-        # Calculate Dice for each class and average them
-        for i in range(num_classes):
-            # Optional: Skip background or specific ignored index
-            if i == self.ignore_index:
-                continue
-                
-            prob = probs[:, i, :, :].reshape(-1)
-            targ = targets_one_hot[:, i, :, :].reshape(-1)
-            
-            intersection = (prob * targ).sum()
-            dice_class = (2. * intersection + smooth) / (prob.sum() + targ.sum() + smooth)
-            dice_loss += (1 - dice_class)
-
-        # Average Dice loss across classes
-        avg_dice_loss = dice_loss / num_classes
-
-        return ce_loss + avg_dice_loss
 if __name__=="__main__":
 
-    ## Testing configs.
-    configs=model_configs()
-    configs.get_varient_configs('efficient_b0')
+    # ## Testing configs.
+    # configs=model_configs()
+    # configs.get_varient_configs('efficient_b0')
 
-    ### Testing Custom Layers.
-    # Custom Layer object
-    model_helpers=model_helpers()
+    # ### Testing Custom Layers.
+    # # Custom Layer object
+    # model_helpers=model_helpers()
 
-    # Input
-    inputs=torch.randn((1,3,224,224))
-    print('Input: ',inputs.shape)
+    # # Input
+    # inputs=torch.randn((1,3,224,224))
+    # print('Input: ',inputs.shape)
 
-    # Testing get_model_output_size
-    output=model_helpers.get_output_image_size(input_image_size=(224,224),stride=(2,2))
-    print('get_output_size with stride 2: ',output)
+    # # Testing get_model_output_size
+    # output=model_helpers.get_output_image_size(input_image_size=(224,224),stride=(2,2))
+    # print('get_output_size with stride 2: ',output)
 
-    # Test dynamic layer
-    dynamic_conv2d=model_helpers.dynamically_same_padded_conv2D(in_channels=3,out_channels=12,kernel_size=(3,3),stride=2,dilation=1,groups=1,bias=False)
-    output=dynamic_conv2d(inputs)
-    print('dynamic conv2d: ',output.shape)
+    # # Test dynamic layer
+    # dynamic_conv2d=model_helpers.dynamically_same_padded_conv2D(in_channels=3,out_channels=12,kernel_size=(3,3),stride=2,dilation=1,groups=1,bias=False)
+    # output=dynamic_conv2d(inputs)
+    # print('dynamic conv2d: ',output.shape)
 
-    # Test static layer
-    static_conv2d=model_helpers.statically_same_padded_conv2D(in_channels=3,out_channels=12,kernel_size=(3,3),stride=(2,2),image_size=(224,224))
-    output=static_conv2d(inputs)
-    print('static conv2d:',output.shape)
+    # # Test static layer
+    # static_conv2d=model_helpers.statically_same_padded_conv2D(in_channels=3,out_channels=12,kernel_size=(3,3),stride=(2,2),image_size=(224,224))
+    # output=static_conv2d(inputs)
+    # print('static conv2d:',output.shape)
 
-    # Testing same padded layer
-    same_padded_conv2d=model_helpers.same_padded_conv2D((224,224))
-    conv2d=same_padded_conv2d(in_channels=3,out_channels=12,kernel_size=(3,3),stride=(2,2),dilation=1,groups=1,bias=False)
-    print('testing same padded: ',output.shape)
+    # # Testing same padded layer
+    # same_padded_conv2d=model_helpers.same_padded_conv2D((224,224))
+    # conv2d=same_padded_conv2d(in_channels=3,out_channels=12,kernel_size=(3,3),stride=(2,2),dilation=1,groups=1,bias=False)
+    # print('testing same padded: ',output.shape)
     
-    same_padded_conv2d=model_helpers.same_padded_conv2D()
-    conv2d=same_padded_conv2d(in_channels=3,out_channels=12,kernel_size=(3,3),stride=(2,2),dilation=1,groups=1,bias=False)
-    print('testing same padded: ',output.shape)
+    # same_padded_conv2d=model_helpers.same_padded_conv2D()
+    # conv2d=same_padded_conv2d(in_channels=3,out_channels=12,kernel_size=(3,3),stride=(2,2),dilation=1,groups=1,bias=False)
+    # print('testing same padded: ',output.shape)
 
-    # Testing Maxpool 2D.
-    same_padded_max_pool=model_helpers.same_padded_maxpool2D(image_size=(224,224))
-    max_pool_2D=same_padded_max_pool(kernel_size=(3,3),stride=(2,2))
-    output=max_pool_2D(inputs)
-    print('Max pool static: ',output.shape)
+    # # Testing Maxpool 2D.
+    # same_padded_max_pool=model_helpers.same_padded_maxpool2D(image_size=(224,224))
+    # max_pool_2D=same_padded_max_pool(kernel_size=(3,3),stride=(2,2))
+    # output=max_pool_2D(inputs)
+    # print('Max pool static: ',output.shape)
 
-    # Testing Maxpool 2D.
-    same_padded_max_pool=model_helpers.same_padded_maxpool2D()
-    max_pool_2D=same_padded_max_pool(kernel_size=(3,3),stride=(2,2))
-    output=max_pool_2D(inputs)
-    print('max pool dynamic: ',output.shape)
+    # # Testing Maxpool 2D.
+    # same_padded_max_pool=model_helpers.same_padded_maxpool2D()
+    # max_pool_2D=same_padded_max_pool(kernel_size=(3,3),stride=(2,2))
+    # output=max_pool_2D(inputs)
+    # print('max pool dynamic: ',output.shape)
+
+    batch_logits=torch.randn(size=(3,10,224,224))
+    # print("sample Logit shape: (B,C,H,W) = ",batch_logits.shape)
+    # print("sample Logit : ",batch_logits)
+    batch_sample_gt=torch.randint(low=0,high=10,size=(3,224,224))
+    # print("sample gt shape: ",batch_sample_gt.shape)
+    # print("sample gt : ",batch_sample_gt)
+
+    loss_fn=four_musquiter_loss()
+    loss_fn(batch_logits,batch_sample_gt)

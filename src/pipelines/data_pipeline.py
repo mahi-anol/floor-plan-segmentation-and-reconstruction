@@ -81,12 +81,12 @@ class CVC_FP_dataset(Dataset):
             refined_mask[np.all(fixed_mask_from_closest_points==color,axis=-1)]=np.int_(id)
 
         ### ADDED 
-        WALL_ORIGINAL_ID = 3 
-        binary_mask = np.where(refined_mask == WALL_ORIGINAL_ID, 1, 0)
+        # WALL_ORIGINAL_ID = 3 
+        # binary_mask = np.where(refined_mask == WALL_ORIGINAL_ID, 1, 0)
         ### ADDED END
         image=cls.img_tf(image)
-        # mask=cls.mask_tf(Image.fromarray(refined_mask.astype(np.int32))).squeeze(0).long()
-        mask = cls.mask_tf(Image.fromarray(binary_mask.astype(np.uint8))).squeeze(0).long()
+        mask=cls.mask_tf(Image.fromarray(refined_mask.astype(np.int32))).squeeze(0).long()
+        # mask = cls.mask_tf(Image.fromarray(binary_mask.astype(np.uint8))).squeeze(0).long()
         return image,mask
         
 

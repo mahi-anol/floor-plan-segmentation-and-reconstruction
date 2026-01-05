@@ -1,0 +1,49 @@
+class three_musquiter_loss(nn.Module):
+    def __init__(self,alpha=None,gemma=0,eps=1e-7,smoth=1e-7):
+        super().__init__()
+        self.alpha=alpha if alpha!=None else 1
+        self.gemma=gemma
+        self.eps=eps
+        self.smoth=smoth
+
+    def forward(self,batch_logits,batch_sample_gt):
+        # ### Cross Entropy for segmentation loss
+        # # batch_logits=torch.randn(size=(3,10,224,224))
+        # print("sample Logit shape: (B,C,H,W) = ",batch_logits.shape)
+        # # print("sample Logit : ",batch_logits)
+        # # batch_sample_gt=torch.randint(low=0,high=10,size=(3,224,224))
+        # print("sample gt shape: (B,H,W) = ",batch_sample_gt.shape)
+        # # print("sample gt : ",batch_sample_gt)
+
+        ### Cross entropy loss
+        batch_logits_max=torch.max(batch_logits,dim=1,keepdim=True)[0]
+        shifted_logits=batch_logits-batch_logits_max
+        exp_logits=torch.exp(shifted_logits)
+        exp_logit_sum=torch.sum(exp_logits,dim=1,keepdim=True)
+        softmax=exp_logits/exp_logit_sum
+        # print("softmax shape: ",softmax.shape)
+        # print("gt shape: ",batch_sample_gt.shape)
+        correct_class_probability=softmax.gather(dim=1,index=batch_sample_gt.unsqueeze(1)).squeeze(1)
+        # print("correct class probability shape: ",correct_class_probability.shape)
+        # print(correct_class_probability)
+        log_probability=torch.log(correct_class_probability+self.eps)
+        cross_entropy_loss=-torch.mean(log_probability)
+        ### cross entropy loss
+
+        ### dice loss
+        batch_sample_gt_one_hot=nn.functional.one_hot(batch_sample_gt,num_classes=batch_logits.shape[1]).permute(0,-1,-3,-2)
+        # print(batch_sample_gt_one_hot.shape)
+        intersection=torch.sum(batch_sample_gt_one_hot*softmax,dim=(-2,-1))
+        # print("Intersection shape: ",intersection.shape)
+        union=torch.sum(batch_sample_gt_one_hot,dim=(-2,-1))+torch.sum(softmax,dim=(-2,-1))
+
+        dice_coeff=(2*(intersection+self.smoth))/(union+self.smoth)
+        # print("Dice Coeff shape: ",dice_coeff.shape)
+        dice_loss=1-dice_coeff.mean()
+        ### dice loss
+
+        ### Focal LOSS
+        focal_loss= torch.mean(-self.alpha*(1-log_probability)**self.gemma*log_probability)
+        ### Focal LOSS
+        return cross_entropy_loss+dice_loss+focal_loss
+    

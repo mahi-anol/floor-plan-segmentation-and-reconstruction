@@ -16,8 +16,6 @@ class ChannelAttention(nn.Module):
         self.fc22=nn.Conv2d(in_channels=int(out_channels//se_ratio),out_channels=out_channels,kernel_size=(1,1),bias=False)
         self.relu=nn.ReLU(inplace=False)
         self.sigmoid=nn.Sigmoid()
-
-    
     def forward(self,x):
         x=self.conv(x)
         avg_out=self.fc12(self.relu(self.fc11(self.avg_pool(x))))

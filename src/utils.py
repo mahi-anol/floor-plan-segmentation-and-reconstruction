@@ -253,15 +253,14 @@ def saving_model_with_state_and_logs(model,optimizer,results,file="model.pt"):
         logging.info(f"Succesfully saved the model artifact at {path}")
 
 
-class four_musquiter_loss(nn.Module):
-    def __init__(self,alpha=1,beta=1,gemma=1,omega=1,eps=1e-7,smoth=1e-7):
+class ThreeMusketeerLoss(nn.Module):
+    def __init__(self,alpha=None,gemma=0,eps=1e-7,smoth=1e-7,loss_weights=[0,0,0]):
         super().__init__()
-        self.alpha=alpha
-        self.beta=beta
+        self.alpha=alpha if alpha!=None else 1
         self.gemma=gemma
-        self.omega=omega
         self.eps=eps
         self.smoth=smoth
+        self.loss_weights=loss_weights
 
     def forward(self,batch_logits,batch_sample_gt):
         # ### Cross Entropy for segmentation loss
@@ -273,11 +272,12 @@ class four_musquiter_loss(nn.Module):
         # # print("sample gt : ",batch_sample_gt)
 
         ### Cross entropy loss
-        batch_logits_max=torch.max(batch_logits,dim=1,keepdim=True)[0]
+        batch_logits_max=torch.max(batch_logits,dim=1,keepdim=True)[0] # For neumerical stability ...max across the class dimention. so we should get b,1,224,224
+        # print("t: ", batch_logits_max.shape)
         shifted_logits=batch_logits-batch_logits_max
         exp_logits=torch.exp(shifted_logits)
         exp_logit_sum=torch.sum(exp_logits,dim=1,keepdim=True)
-        softmax=exp_logits/exp_logit_sum
+        softmax=exp_logits/exp_logit_sum 
         # print("softmax shape: ",softmax.shape)
         # print("gt shape: ",batch_sample_gt.shape)
         correct_class_probability=softmax.gather(dim=1,index=batch_sample_gt.unsqueeze(1)).squeeze(1)
@@ -288,22 +288,22 @@ class four_musquiter_loss(nn.Module):
         ### cross entropy loss
 
         ### dice loss
-        batch_sample_gt_one_hot=nn.functional.one_hot(batch_sample_gt,num_classes=batch_logits.shape[1]).permute(0,-1,-3,-2)
-        # print(batch_sample_gt_one_hot.shape)
-        intersection=torch.sum(batch_sample_gt_one_hot*softmax,dim=(-2,-1))
+        batch_sample_gt_one_hot=nn.functional.one_hot(batch_sample_gt,num_classes=batch_logits.shape[1]).permute(0,-1,-3,-2).float()
+        # print("batch sample git hot shape: ",batch_sample_gt_one_hot.shape)
+        intersection=torch.sum(batch_sample_gt_one_hot*softmax,dim=(-2,-1)) # 3,10,224,224 * 3,10,224,224
         # print("Intersection shape: ",intersection.shape)
         union=torch.sum(batch_sample_gt_one_hot,dim=(-2,-1))+torch.sum(softmax,dim=(-2,-1))
 
         dice_coeff=(2*(intersection+self.smoth))/(union+self.smoth)
-        
         # print("Dice Coeff shape: ",dice_coeff.shape)
         dice_loss=1-dice_coeff.mean()
         ### dice loss
 
         ### Focal LOSS
-        
+        focal_loss= torch.mean(-self.alpha*(1-correct_class_probability)**self.gemma*log_probability)
         ### Focal LOSS
-        return self.alpha*cross_entropy_loss+self.beta*dice_loss
+        return self.loss_weights[0]*cross_entropy_loss+self.loss_weights[1]+self.loss_weights[2]*dice_loss+focal_loss
+    
 
 if __name__=="__main__":
 
@@ -361,6 +361,6 @@ if __name__=="__main__":
     print("sample gt shape: ",batch_sample_gt.shape)
     # print("sample gt : ",batch_sample_gt)
 
-    loss_fn=four_musquiter_loss()
+    loss_fn=ThreeMusketeerLoss(loss_weights=[0,1,1])
     print("four_musquiter_loss_test: ",loss_fn(batch_logits,batch_sample_gt))
 

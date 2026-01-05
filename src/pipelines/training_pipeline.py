@@ -7,7 +7,7 @@ from tqdm import tqdm
 import torch
 import logging
 import os
-from src.utils import saving_model_with_state_and_logs,four_musquiter_loss
+from src.utils import saving_model_with_state_and_logs,ThreeMusketeerLoss
 import torch.optim as optim
 import torch.nn as nn
 
@@ -32,7 +32,7 @@ model.to(device)
 optimizer=optim.Adam(model.parameters(),lr=1e-4,weight_decay=1e-4)
 # loss_fn=nn.CrossEntropyLoss()
 # loss_fn=MulticlassDiceCELoss()
-loss_fn=four_musquiter_loss()
+loss_fn=ThreeMusketeerLoss()
 
 
 def train_step(model,data_loader,loss_fn,optimizer,device):

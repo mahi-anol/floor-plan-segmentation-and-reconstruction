@@ -5,3 +5,7 @@ beautifulsoup4
 lxml
 tqdm
 cairosvg
+# trimesh
+# shapely             ### For 3D reconstruction enable these
+# opencv-python
+# mapbox_earcut

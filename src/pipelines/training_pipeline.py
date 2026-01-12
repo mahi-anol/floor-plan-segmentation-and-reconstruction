@@ -24,7 +24,7 @@ torch.backends.cudnn.deterministic = True
 # Dataset
 train_dataset_loader,test_dataset_loader=get_train_test_loader()
 # Model
-model=get_model(image_channel=3,number_of_class=8)
+model=get_model(image_channel=3,number_of_class=2)
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -145,8 +145,10 @@ train(model=model
     ,test_dataloader=test_dataset_loader
     ,optimizer=optimizer
     ,loss_fn=loss_fn
-    ,epochs=20
+    ,epochs=100
     ,device=device
     ,checkpoint_saving_gap=1
     ,resume_from_previous_state=False
     )
+
+

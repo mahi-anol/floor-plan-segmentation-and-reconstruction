@@ -125,63 +125,88 @@ class MULTI_UNIT_FLOOR_SEGMENT_MODEL(nn.Module):
 
         self.conv1=nn.Sequential(
             ACBlock(image_channel,channels[0]),###(B,3,224,224)
-            ACBlock(channels[0],channels[0])###(B,16,224,224)
+            ACBlock(channels[0],channels[0]),###(B,16,224,224)
+            ACBlock(channels[0],channels[0]),###(B,16,224,224)
+            ACBlock(channels[0],channels[0])
         )   
 
         self.conv12=nn.Sequential(
             nn.MaxPool2d(kernel_size=(2,2),stride=(2,2)),###(B,16,112,112)
-            ACBlock(channels[0],channels[1])###(B,32,112,112)
+            ACBlock(channels[0],channels[1]),###(B,32,112,112)
+            ACBlock(channels[1],channels[1]),###(B,32,112,112)
+            ACBlock(channels[1],channels[1]),###(B,32,112,112)
+            ACBlock(channels[1],channels[1])###(B,32,112,112)
         )
         self.conv13=nn.Sequential(
             nn.MaxPool2d(kernel_size=(2,2),stride=(2,2)),###(B,32,56,56)
-            ACBlock(channels[1],channels[2])###(B,64,56,56)
+            ACBlock(channels[1],channels[2]),###(B,64,56,56)
+            ACBlock(channels[2],channels[2]),###(B,64,56,56)
+            ACBlock(channels[2],channels[2]),###(B,64,56,56)
+            ACBlock(channels[2],channels[2]),###(B,64,56,56)
 
         )
 
         self.conv14=nn.Sequential(
             nn.MaxPool2d(kernel_size=(2,2),stride=(2,2)),###(B,64,28,28)
-            ACBlock(channels[2],channels[3]) ###(B,128,28,28)
+            ACBlock(channels[2],channels[3]), ###(B,128,28,28)
+            ACBlock(channels[3],channels[3]), ###(B,128,28,28)
+            ACBlock(channels[3],channels[3]), ###(B,128,28,28)
+            ACBlock(channels[3],channels[3]), ###(B,128,28,28)
         )
 
 
         self.conv2=nn.Sequential(
             nn.MaxPool2d(kernel_size=(2,2),stride=(2,2)),###(B,16,112,112)
             ACBlock(channels[0], channels[1]),###(B,32,112,112)
-            # ACBlock(channels[1], channels[1])###(B,32,112,112)
+            ACBlock(channels[1], channels[1]),###(B,32,112,112)
+            ACBlock(channels[1], channels[1]),###(B,32,112,112)
+            ACBlock(channels[1], channels[1]),###(B,32,112,112)
         )
 
         self.conv23 = nn.Sequential(
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)),###(B,32,56,56)
-            ACBlock(channels[1], channels[2])###(B,64,56,56)
+            ACBlock(channels[1], channels[2]),###(B,64,56,56)
+            ACBlock(channels[2], channels[2]),###(B,64,56,56)
+            ACBlock(channels[2], channels[2]),###(B,64,56,56)
+            ACBlock(channels[2], channels[2]),###(B,64,56,56)
         )
         self.conv24 = nn.Sequential(
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)),###(B,64,28,28)
-            ACBlock(channels[2], channels[3])###(B,128,28,28)
+            ACBlock(channels[2], channels[3]),###(B,128,28,28)
+            ACBlock(channels[3], channels[3]),###(B,128,28,28)
+            ACBlock(channels[3], channels[3]),###(B,128,28,28)
+            ACBlock(channels[3], channels[3]),###(B,128,28,28)
         )
 
         self.conv3 = nn.Sequential(
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)), #32,56,56
             ACBlock(channels[1], channels[2]), # 64,56,56
-            # ACBlock(channels[2], channels[2]), # 64,56,56
-            # ACBlock(channels[2], channels[2]) # 64,56,56
+            ACBlock(channels[2], channels[2]), # 64,56,56
+            ACBlock(channels[2], channels[2]), # 64,56,56
+            ACBlock(channels[2], channels[2]), # 64,56,56
         )
         self.conv34 = nn.Sequential(
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)), # 64,28,28
-            ACBlock(channels[2], channels[3]) # 128,28,28
+            ACBlock(channels[2], channels[3]), # 128,28,28
+            ACBlock(channels[3], channels[3]), # 128,28,28
+            ACBlock(channels[3], channels[3]), # 128,28,28
+            ACBlock(channels[3], channels[3]), # 128,28,28
         )
 
         self.conv4 = nn.Sequential(
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)), # 64,28,28
             ACBlock(channels[2], channels[3]), # 128,28,28
-            # ACBlock(channels[3], channels[3]), # 128,28,28
-            # ACBlock(channels[3], channels[3]) # 128,28,28
+            ACBlock(channels[3], channels[3]), # 128,28,28
+            ACBlock(channels[3], channels[3]), # 128,28,28
+            ACBlock(channels[3], channels[3]) # 128,28,28
         )
 
         self.conv5 = nn.Sequential(
             nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)), #128,14,14
             ACBlock(channels[3], channels[4]), # 256,14,14
-            # ACBlock(channels[4], channels[4]), # 256,14,14
-            # ACBlock(channels[4], channels[4]) # 256,14,14
+            ACBlock(channels[4], channels[4]), # 256,14,14
+            ACBlock(channels[4], channels[4]), # 256,14,14
+            ACBlock(channels[4], channels[4]) # 256,14,14
         )
 
         ### OLD

@@ -210,3 +210,4 @@ dataset2
 artifacts/
 data-source/
 checkpoints/
+cross_entropy_best.pt 

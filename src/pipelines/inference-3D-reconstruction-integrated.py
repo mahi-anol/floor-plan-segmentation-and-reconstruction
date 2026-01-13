@@ -259,7 +259,7 @@ if __name__ == "__main__":
     # UPDATE THESE PATHS
     CONFIG = {
         "image": r"E:\floor-plan-segmentation-and-reconstruction\ttest_floorplan\png-transparent-floor-plan-paper-line-2d-floor-plan-angle-text-rectangle.png",
-        "model": "E:/floor-plan-segmentation-and-reconstruction/checkpoints/cross_entropy_best.pt",
+        "model": "E:/floor-plan-segmentation-and-reconstruction/checkpoints/best.pt",
         "pickle": "./artifacts/processed-data/color_to_class.pkl",
         "output_3d": "my_floorplan_3d.obj" # Output file name
     }

@@ -211,3 +211,5 @@ artifacts/
 data-source/
 checkpoints/
 cross_entropy_best.pt 
+*.zip
+training_results/

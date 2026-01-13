@@ -116,6 +116,7 @@ class Modified_Attention_Block(nn.Module):
 
     
 
+
 class MULTI_UNIT_FLOOR_SEGMENT_MODEL(nn.Module):
     def __init__(self,image_channel,class_num):
         super(MULTI_UNIT_FLOOR_SEGMENT_MODEL,self).__init__()

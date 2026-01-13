@@ -268,7 +268,7 @@ if __name__ == "__main__":
     CONFIG = {
         # Note: Using 'r' before the string handles backslashes on Windows automatically
         "image": r"E:\floor-plan-segmentation-and-reconstruction\ttest_floorplan\8cb3a4ff6504a74bb9f5c06192fd1cdc.jpg",
-        "model": r"E:\floor-plan-segmentation-and-reconstruction\cross_entropy_best.pt",
+        "model": r"E:\floor-plan-segmentation-and-reconstruction\checkpoints\best.pt",
         "pickle": "./artifacts/processed-data/color_to_class.pkl",
         "output_3d": "my_floorplan_3d.obj" 
     }

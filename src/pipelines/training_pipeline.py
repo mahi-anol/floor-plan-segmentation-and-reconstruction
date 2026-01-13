@@ -118,7 +118,7 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
         if (epoch + 1) % checkpoint_saving_gap == 0:
             # It's good practice to reflect the loss type in the checkpoint name if it differs,
             # but based on the overall script, this engine is specifically for cross_entropy.
-            saving_model_with_state_and_logs(model, optimizer, results, f"{epoch+1}_crossentropy_loss_trained_model.pt")
+            saving_model_with_state_and_logs(model, optimizer, results, f"Epoch-{epoch+1}_trained_model.pt")
             logging.info(f"Saved epoch checkpoint at epoch {epoch+1}")
         # Save best model based on test accuracy
         if test_accuracy > best_test_accuracy:
@@ -129,11 +129,11 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
             # A shallow copy is usually sufficient if saving_model_with_state_and_logs doesn't modify it.
             # Using slice [:] creates a shallow copy of the lists within results.
             current_results_for_best = {k: v[:] for k, v in results.items()} 
-            saving_model_with_state_and_logs(model, optimizer, current_results_for_best, "cross_entropy_best.pt")
+            saving_model_with_state_and_logs(model, optimizer, current_results_for_best, "Best.pt")
 
     # After the training loop finishes, save the last model
     logging.info("Saving last trained model @ ./models")
-    saving_model_with_state_and_logs(model, optimizer, results, "cross_entropy_last.pt")
+    saving_model_with_state_and_logs(model, optimizer, results, "Last.pt")
 
 
 

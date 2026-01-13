@@ -297,7 +297,7 @@ def get_model(image_channel=3,number_of_class=10):
     
 
 if __name__ == '__main__':
-    classe_num = 10
+    classe_num = 2
     in_batch, inchannel, in_h, in_w = 4, 3, 224, 224
     x = torch.randn(in_batch, inchannel, in_h, in_w)
     net = get_model(3,classe_num)

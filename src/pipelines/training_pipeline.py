@@ -21,6 +21,10 @@ torch.backends.cudnn.deterministic = True
 
 ### For changing model config or transferlearn/finetune config ....Need to go to src/model/__init__.py
 
+if not os.path.exists('./artifacts/augmented'):
+    from src.components import data_augmentation
+    data_augmentation.run_augmentation()
+
 # Dataset
 train_dataset_loader,test_dataset_loader=get_train_test_loader()
 # Model

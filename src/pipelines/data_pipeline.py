@@ -151,8 +151,8 @@ import pickle
 
 @dataclass
 class DatasetConfig:
-    train_data_path: str = "./artifacts/processed-data/train"
-    test_data_path: str = "./artifacts/processed-data/test"
+    train_data_path: str = "./artifacts/augmented/train"
+    test_data_path: str = "./artifacts/augmented/test"
     class_to_color_mapping_pkl: str = './artifacts/processed-data/color_to_class.pkl'
 
 class CVC_FP_dataset(Dataset):

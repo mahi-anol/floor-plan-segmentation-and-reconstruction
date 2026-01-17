@@ -196,7 +196,7 @@ def hyperParameterOptimizer(trial):
     
 if __name__=="__main__":
     study=optuna.create_study(direction="maximize",study_name="Floor plan model hyperParameter Tunning")
-    study.optimize(func=hyperParameterOptimizer,n_trials=5,show_progress_bar=True)
+    study.optimize(func=hyperParameterOptimizer,n_trials=10,show_progress_bar=True)
 
     logging.info("Best Test Acc: %s",study.best_value)
     logging.info("Best Params: %s",study.best_params)

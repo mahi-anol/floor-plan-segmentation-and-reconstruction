@@ -58,12 +58,7 @@ class SAMBlock(nn.Module):
         out=reduce*out
         # print(out.shape)
         return out
-
-
-
-
-
-
+    
 class CAMBlock(nn.Module):
     def __init__(self,in_channels):
         # output ch = input ch/2
@@ -122,7 +117,8 @@ class MULTI_UNIT_FLOOR_SEGMENT_MODEL(nn.Module):
         super(MULTI_UNIT_FLOOR_SEGMENT_MODEL,self).__init__()
         self.class_num=class_num
 
-        channels=[16,32,64,128,256,512]
+        # channels=[16,32,64,128,256,512]
+        channels=[8,16,32,64,128]
 
         self.conv1=nn.Sequential(
             ACBlock(image_channel,channels[0]),###(B,3,224,224)

@@ -1,177 +1,3 @@
-# import os
-# import cv2
-# import glob
-# import shutil
-# import random
-# import numpy as np
-# from tqdm import tqdm
-# from pathlib import Path
-
-# # ===========================
-# # 1. CONFIGURATION
-# # ===========================
-# INPUT_ROOT = "./artifacts/processed-data"              # Where your 'train' and 'test' folders are
-# OUTPUT_ROOT = ".artifacts/augmented"    # Where the output will be saved
-# AUGMENTATIONS_PER_IMAGE = 3    # How many variants to generate per original
-
-# # ===========================
-# # 2. GEOMETRIC TRANSFORMATION LOGIC
-# # ===========================
-
-# def rotate_and_expand(image, angle, is_mask=False):
-#     """
-#     Rotates an image by 'angle' degrees.
-#     Expands the canvas size so NO part of the image is cut off.
-#     """
-#     (h, w) = image.shape[:2]
-#     (cX, cY) = (w // 2, h // 2)
-
-#     # Get rotation matrix
-#     M = cv2.getRotationMatrix2D((cX, cY), angle, 1.0)
-    
-#     # Calculate new bounding box dimensions (trigonometry)
-#     cos = np.abs(M[0, 0])
-#     sin = np.abs(M[0, 1])
-#     nW = int((h * sin) + (w * cos))
-#     nH = int((h * cos) + (w * sin))
-
-#     # Adjust the rotation matrix translation to center the image in new box
-#     M[0, 2] += (nW / 2) - cX
-#     M[1, 2] += (nH / 2) - cY
-
-#     # Determine interpolation and border mode
-#     # For MASKS: Use Nearest Neighbor (INTER_NEAREST) to keep values integers (0, 1...)
-#     # For IMAGES: Use Cubic or Linear (INTER_CUBIC) for quality
-#     interp = cv2.INTER_NEAREST if is_mask else cv2.INTER_CUBIC
-    
-#     # Determine border color (padding)
-#     # For Masks: Fill with 0 (background)
-#     # For Floor Plans: Usually white (255) is better than black for empty space
-#     # We auto-detect the top-left pixel color for images to guess the background
-#     if is_mask:
-#         border_val = 0
-#     else:
-#         # Detect corner color to use as fill (handling 3 channels or 1 channel)
-#         if len(image.shape) == 3:
-#             border_val = [int(c) for c in image[0,0]] # [B, G, R] of top-left pixel
-#         else:
-#             border_val = int(image[0,0])
-
-#     return cv2.warpAffine(image, M, (nW, nH), flags=interp, borderValue=border_val)
-
-# def apply_random_geometry(image, mask):
-#     """
-#     Applies random flips and random rotation (0-360) with canvas expansion.
-#     """
-#     # 1. Random Horizontal Flip
-#     if random.random() > 0.5:
-#         image = cv2.flip(image, 1)
-#         mask = cv2.flip(mask, 1)
-
-#     # 2. Random Vertical Flip
-#     if random.random() > 0.5:
-#         image = cv2.flip(image, 0)
-#         mask = cv2.flip(mask, 0)
-
-#     # 3. Random Rotation (Any angle)
-#     angle = random.uniform(0, 360) # Float angle between 0 and 360
-#     image = rotate_and_expand(image, angle, is_mask=False)
-#     mask = rotate_and_expand(mask, angle, is_mask=True)
-
-#     return image, mask
-
-# # ===========================
-# # 3. FILE HANDLING HELPERS
-# # ===========================
-
-# def find_mask_for_image(image_path):
-#     directory = os.path.dirname(image_path)
-#     name_stem = Path(image_path).stem 
-#     all_files = os.listdir(directory)
-#     # Find file with same start name + containing '_gt_'
-#     candidates = [f for f in all_files if '_gt_' in f and f.startswith(name_stem)]
-#     if len(candidates) == 0: return None
-#     return os.path.join(directory, candidates[0])
-
-# def ensure_dir(directory):
-#     if not os.path.exists(directory):
-#         os.makedirs(directory)
-
-# # ===========================
-# # 4. MAIN PIPELINE
-# # ===========================
-
-# def augment():
-#     train_dir = os.path.join(INPUT_ROOT, 'train')
-#     test_dir = os.path.join(INPUT_ROOT, 'test')
-#     output_train_dir = os.path.join(OUTPUT_ROOT, 'train')
-#     output_test_dir = os.path.join(OUTPUT_ROOT, 'test')
-
-#     # --- PART A: Handle Test Data (Copy Only) ---
-#     print("--- Processing Test Data ---")
-#     if os.path.exists(test_dir):
-#         if os.path.exists(output_test_dir):
-#             shutil.rmtree(output_test_dir)
-#         print(f"Copying {test_dir} to {output_test_dir}...")
-#         shutil.copytree(test_dir, output_test_dir)
-#     else:
-#         print("Warning: 'test' folder not found. Skipping.")
-
-#     # --- PART B: Handle Train Data (Augment) ---
-#     print("\n--- Processing Train Data ---")
-    
-#     # Recursively find all PNGs
-#     all_files = glob.glob(os.path.join(train_dir, '**', '*.png'), recursive=True)
-#     # Filter out label files from the list of source images
-#     image_files = [f for f in all_files if '_gt_' not in os.path.basename(f)]
-    
-#     print(f"Found {len(image_files)} source images. Generating {AUGMENTATIONS_PER_IMAGE} variants each.")
-
-#     for img_path in tqdm(image_files, desc="Augmenting"):
-#         # 1. Match Image and Mask
-#         mask_path = find_mask_for_image(img_path)
-#         if mask_path is None:
-#             continue
-            
-#         # 2. Read Files
-#         image = cv2.imread(img_path)
-#         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) # Masks are 1-channel
-        
-#         if image is None or mask is None: continue
-
-#         # 3. Prepare Output Path
-#         rel_path = os.path.relpath(os.path.dirname(img_path), INPUT_ROOT)
-#         save_dir = os.path.join(OUTPUT_ROOT, rel_path)
-#         ensure_dir(save_dir)
-        
-#         file_stem = Path(img_path).stem
-#         mask_stem = Path(mask_path).stem
-
-#         # 4. Save ORIGINAL
-#         cv2.imwrite(os.path.join(save_dir, f"{file_stem}.png"), image)
-#         cv2.imwrite(os.path.join(save_dir, f"{mask_stem}.png"), mask)
-
-#         # 5. Generate AUGMENTATIONS
-#         for i in range(AUGMENTATIONS_PER_IMAGE):
-#             try:
-#                 # Apply transformation
-#                 aug_img, aug_mask = apply_random_geometry(image.copy(), mask.copy())
-                
-#                 # Save
-#                 new_img_name = f"{file_stem}_aug_{i}.png"
-#                 new_mask_name = f"{mask_stem}_aug_{i}.png"
-                
-#                 cv2.imwrite(os.path.join(save_dir, new_img_name), aug_img)
-#                 cv2.imwrite(os.path.join(save_dir, new_mask_name), aug_mask)
-                
-#             except Exception as e:
-#                 print(f"Error augmenting {img_path}: {e}")
-
-#     print(f"\nDone! Dataset saved in: {OUTPUT_ROOT}")
-
-# if __name__ == "__main__":
-#     augment()
-
 import os
 import cv2
 import glob
@@ -181,9 +7,7 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 
-# ===========================
-# 1. CONFIGURATION
-# ===========================
+
 INPUT_ROOT = "./artifacts/processed-data"
 OUTPUT_ROOT = "./artifacts/augmented"
 AUGMENTATIONS_PER_IMAGE = 3  # Each original gets 3 separate folders
@@ -194,9 +18,7 @@ PALETTE_RGB = {
     "Background": (0, 0, 0),
     "Wall": (255, 0, 0),
 }
-# ===========================
-# 2. UTILITIES
-# ===========================
+
 def rgb_to_bgr_palette(palette_rgb):
     """Convert a name->(R,G,B) palette into (B,G,R) values for OpenCV comparisons."""
     return {name: (col[2], col[1], col[0]) for name, col in palette_rgb.items()}
@@ -232,9 +54,7 @@ def ensure_3channel_for_pixel_ops(img):
         return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     return img
 
-# ===========================
-# 3. TRANSFORMATION LOGIC
-# ===========================
+
 def apply_pixel_modifications(image):
     """Randomly applies a small amount of blur or sharpness.
        Works with color or grayscale. Returns same dtype/channels as input."""
@@ -299,7 +119,7 @@ def apply_random_geometry(image, mask):
     image = apply_pixel_modifications(image)
     return image, mask
 
-# Optional: convert mask colors (BGR) to class index image
+
 def convert_mask_colors_to_index(mask_bgr, palette_bgr):
     """
     Convert a BGR color-coded mask to integer class indices.
@@ -321,9 +141,7 @@ def convert_mask_colors_to_index(mask_bgr, palette_bgr):
         out = mask_bgr.copy().astype(np.uint8)
     return out
 
-# ===========================
-# 4. CORE AUGMENTATION PROCESS
-# ===========================
+
 def run_augmentation():
     train_in = os.path.join(INPUT_ROOT, "train")
     test_in = os.path.join(INPUT_ROOT, "test")

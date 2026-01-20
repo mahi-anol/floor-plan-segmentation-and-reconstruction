@@ -336,7 +336,7 @@ if __name__ == "__main__":
     CONFIG = {
         "image": r"E:\floor-plan-segmentation-and-reconstruction\artifacts\processed-data\train\55\IIa_AP3401.png",
         "mask":  r"E:\floor-plan-segmentation-and-reconstruction\artifacts\processed-data\train\55\IIa_AP3401_gt_5.png",
-        "model": r"E:\floor-plan-segmentation-and-reconstruction\cross_entropy_best.pt",
+        "model": r"E:\floor-plan-segmentation-and-reconstruction\training_results\trial-6\Best.pt",
         "pickle": "./artifacts/processed-data/color_to_class.pkl"
     }
 
@@ -346,4 +346,3 @@ if __name__ == "__main__":
         CONFIG["model"],
         CONFIG["pickle"]
     )
-

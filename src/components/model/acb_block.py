@@ -104,5 +104,5 @@ class ACBBlock(nn.Module):
         shift_w=sqare_w//2-asym_w//2
 
         #out_channel,in_channel,h,w
-        sqare_kernel[:,:,shift_h:shift_h+asym_h]
+        sqare_kernel[:,:,shift_h:shift_h+asym_h,shif]
 

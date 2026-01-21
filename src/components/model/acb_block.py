@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 
 class ACBBlock(nn.Module):
     def __init__(self,
@@ -78,7 +79,30 @@ class ACBBlock(nn.Module):
             self.ver_bn=nn.BatchNorm2d(num_features=out_channels,affine=use_affine)
             self.hor_bn=nn.BatchNorm2d(num_features=out_channels,affine=use_affine)
 
+            if reduce_gamma:
+                self.init_gamma(1.0/3)
             
-        
+            if gamma_init is not None:
+                assert not reduce_gamma
+                self.init_gamma(gamma_init)
 
+
+
+    def init_gamma(self,value):
+        init.constant(self.sqare_bn.weight,value)
+        init.constant(self.hor_bn.weight,value)
+        init.constant(self.ver_bn.weight,value)
+    
+    def _add_to_sqare_kernel(self,sqare_kernel,asym_kernel):
+        asym_h=asym_kernel.size(2)
+        asym_w=asym_kernel.size(3)
+
+        sqare_h=sqare_kernel.size(2)
+        sqare_w=sqare_kernel.size(3)
+
+        shift_h=sqare_h//2-asym_h//2
+        shift_w=sqare_w//2-asym_w//2
+
+        #out_channel,in_channel,h,w
+        sqare_kernel[:,:,shift_h:shift_h+asym_h]
 

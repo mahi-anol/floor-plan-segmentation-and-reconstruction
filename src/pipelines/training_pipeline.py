@@ -2,7 +2,8 @@ import random
 import numpy as np
 import torch
 from src.pipelines.data_pipeline import get_train_test_loader
-from src.components.model_mod_3 import get_model
+# from src.components.model_mod_3 import get_model
+from src.components.model.model import get_model
 from tqdm import tqdm
 import torch
 import logging
@@ -177,7 +178,7 @@ def hyperParameterOptimizer(trial):
     hyperParameters={'optimizer_name':optimizer_name,'lr':lr,'batch_size':batch_size,'weight_decay':weight_decay}
 
 
-    epochs=50
+    epochs=100
     logging.info(f"Starting a training session for {epochs} Epochs")
     logging.info("Going with trial no : %s",trial.number)
     logging.info("Used Parameters: %s",trial.params)
@@ -196,7 +197,7 @@ def hyperParameterOptimizer(trial):
     
 if __name__=="__main__":
     study=optuna.create_study(direction="maximize",study_name="Floor plan model hyperParameter Tunning")
-    study.optimize(func=hyperParameterOptimizer,n_trials=10,show_progress_bar=True)
+    study.optimize(func=hyperParameterOptimizer,n_trials=1,show_progress_bar=True)
 
     logging.info("Best Test Acc: %s",study.best_value)
     logging.info("Best Params: %s",study.best_params)

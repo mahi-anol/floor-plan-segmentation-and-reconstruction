@@ -4,7 +4,8 @@ import torch
 from src.pipelines.data_pipeline import get_train_test_loader
 # from src.components.model_mod_3 import get_model
 # from src.components.model.model import get_model
-from src.components.dev_models.v1.model import get_model
+# from src.components.dev_models.MacuNet.model import get_model
+from src.components.dev_models.Novel_v1.model import get_model
 from tqdm import tqdm
 import torch
 import logging
@@ -28,7 +29,7 @@ if not os.path.exists('./artifacts/augmented'):
     data_augmentation.run_augmentation()
 
 # Dataset
-train_dataset_loader,test_dataset_loader=get_train_test_loader()
+train_dataset_loader,test_dataset_loader=get_train_test_loader(batch_size=16)
 # Model
 model=get_model(image_channel=3,number_of_class=2)
 
@@ -155,7 +156,7 @@ train(model=model
     ,device=device
     ,checkpoint_saving_gap=1
     ,resume_from_previous_state=False,
-    exp_no=2
+    exp_no=3
     )
 
 

@@ -254,7 +254,7 @@ def saving_model_with_state_and_logs(model,optimizer,trial_no,results,file="mode
 
 
 class ThreeMusketeerLoss(nn.Module):
-    def __init__(self,alpha=None,gemma=0,eps=1e-7,smoth=1e-7,loss_weights=[0,0,0]):
+    def __init__(self,alpha=None,gemma=0,eps=1e-7,smoth=1e-7,loss_weights=[1,0,0]):
         super().__init__()
         self.alpha=alpha if alpha!=None else 1
         self.gemma=gemma
@@ -302,7 +302,7 @@ class ThreeMusketeerLoss(nn.Module):
         ### Focal LOSS
         focal_loss= torch.mean(-self.alpha*(1-correct_class_probability)**self.gemma*log_probability)
         ### Focal LOSS
-        return self.loss_weights[0]*cross_entropy_loss+self.loss_weights[1]+self.loss_weights[2]*dice_loss+focal_loss
+        return (self.loss_weights[0] * cross_entropy_loss + self.loss_weights[1] * focal_loss + self.loss_weights[2] * dice_loss)
     
 
 if __name__=="__main__":

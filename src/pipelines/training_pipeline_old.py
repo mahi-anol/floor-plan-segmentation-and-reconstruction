@@ -39,7 +39,7 @@ model.to(device)
 optimizer=optim.Adam(model.parameters(),lr=1e-4,weight_decay=1e-4)
 # loss_fn=nn.CrossEntropyLoss()
 # loss_fn=MulticlassDiceCELoss()
-loss_fn=ThreeMusketeerLoss()
+loss_fn=ThreeMusketeerLoss(loss_weights=[0.5,0.5,1.0])
 
 
 def train_step(model,data_loader,loss_fn,optimizer,device):

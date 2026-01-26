@@ -3,7 +3,8 @@ import numpy as np
 import torch
 from src.pipelines.data_pipeline import get_train_test_loader
 # from src.components.model_mod_3 import get_model
-from src.components.model.model import get_model
+# from src.components.model.model import get_model
+from src.components.dev_models.v1.model import get_model
 from tqdm import tqdm
 import torch
 import logging
@@ -79,7 +80,7 @@ def test_step(model,data_loader,loss_fn,device):
         test_loss=test_loss/len(data_loader)
     return test_accuracy,test_loss
 
-def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device,checkpoint_saving_gap,resume_from_previous_state):
+def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device,checkpoint_saving_gap,resume_from_previous_state,exp_no):
 
     ### Loading Prev states
     logging.info(f"Starting training using : {device}")
@@ -123,7 +124,7 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
         if (epoch + 1) % checkpoint_saving_gap == 0:
             # It's good practice to reflect the loss type in the checkpoint name if it differs,
             # but based on the overall script, this engine is specifically for cross_entropy.
-            saving_model_with_state_and_logs(model, optimizer,1, results, f"Epoch-{epoch+1}_trained_model.pt")
+            saving_model_with_state_and_logs(model, optimizer,exp_no, results, f"Epoch-{epoch+1}_trained_model.pt")
             logging.info(f"Saved epoch checkpoint at epoch {epoch+1}")
         # Save best model based on test accuracy
         if test_accuracy > best_test_accuracy:
@@ -134,11 +135,11 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
             # A shallow copy is usually sufficient if saving_model_with_state_and_logs doesn't modify it.
             # Using slice [:] creates a shallow copy of the lists within results.
             current_results_for_best = {k: v[:] for k, v in results.items()} 
-            saving_model_with_state_and_logs(model, optimizer,1, current_results_for_best, "Best.pt")
+            saving_model_with_state_and_logs(model, optimizer,exp_no, current_results_for_best, "Best.pt")
 
     # After the training loop finishes, save the last model
     logging.info("Saving last trained model @ ./models")
-    saving_model_with_state_and_logs(model, optimizer,1, results, "Last.pt")
+    saving_model_with_state_and_logs(model, optimizer,exp_no, results, "Last.pt")
 
 
 
@@ -153,7 +154,8 @@ train(model=model
     ,epochs=100
     ,device=device
     ,checkpoint_saving_gap=1
-    ,resume_from_previous_state=False
+    ,resume_from_previous_state=False,
+    exp_no=2
     )
 
 

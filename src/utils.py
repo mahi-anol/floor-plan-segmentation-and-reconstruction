@@ -304,7 +304,42 @@ class ThreeMusketeerLoss(nn.Module):
         ### Focal LOSS
         return (self.loss_weights[0] * cross_entropy_loss + self.loss_weights[1] * focal_loss + self.loss_weights[2] * dice_loss)
     
+class PolyTverskyLoss(nn.Module):
+    def __init__(self, alpha=0.7, beta=0.3, epsilon=1.0, smooth=1e-6, weights=[1.0, 1.0]):
+        super().__init__()
+        self.alpha = alpha
+        self.beta = beta
+        self.epsilon = epsilon
+        self.smooth = smooth
+        self.weights = weights
 
+    def forward(self, logits, targets):
+        num_classes = logits.shape[1]
+        probs = F.softmax(logits, dim=1)
+        
+        # 1. PolyLoss calculation
+        # Use reduction='mean' immediately to get a scalar
+        ce_loss = F.cross_entropy(logits, targets, reduction='none')
+        one_hot_targets = F.one_hot(targets, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        pt = torch.sum(probs * one_hot_targets, dim=1)
+        
+        poly_loss = ce_loss + self.epsilon * (1 - pt)
+        poly_loss = poly_loss.mean() # Result: Scalar
+
+        # 2. Tversky Loss calculation
+        # Summing over Spatial dimensions (H, W)
+        tp = torch.sum(probs * one_hot_targets, dim=(0, 2, 3))
+        fp = torch.sum(probs * (1 - one_hot_targets), dim=(0, 2, 3))
+        fn = torch.sum((1 - probs) * one_hot_targets, dim=(0, 2, 3))
+        
+        # This gives a tversky index per class
+        tversky_index = (tp + self.smooth) / (tp + self.alpha * fp + self.beta * fn + self.smooth)
+        
+        # IMPORTANT: Mean over classes to return a single SCALAR
+        tversky_loss = (1 - tversky_index).mean() 
+
+        # Final scalar combination
+        return (self.weights[0] * poly_loss) + (self.weights[1] * tversky_loss)
 if __name__=="__main__":
 
     ## Testing configs.

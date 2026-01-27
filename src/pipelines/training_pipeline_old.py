@@ -42,6 +42,7 @@ optimizer=optim.Adam(model.parameters(),lr=1e-4,weight_decay=1e-4)
 # loss_fn=ThreeMusketeerLoss(loss_weights=[0.5,0.5,1.0])
 # loss_fn = PolyTverskyLoss(alpha=0.7, beta=0.3)
 loss_fn=ArConsistencyLoss()
+loss_fn.to(device)
 
 
 def train_step(model,data_loader,loss_fn,optimizer,device):

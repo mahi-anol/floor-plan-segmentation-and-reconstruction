@@ -340,6 +340,98 @@ class PolyTverskyLoss(nn.Module):
 
         # Final scalar combination
         return (self.weights[0] * poly_loss) + (self.weights[1] * tversky_loss)
+    
+class ArConsistencyLoss(nn.Module):
+    def __init__(self, 
+                 w_poly=1.0, 
+                 w_ssim=0.5, 
+                 w_edge=0.5, 
+                 num_classes=2):
+        super().__init__()
+        self.w_poly = w_poly
+        self.w_ssim = w_ssim
+        self.w_edge = w_edge
+        self.num_classes = num_classes
+        
+        # Sobel Kernels for Edge Detection
+        sobel_x = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+        sobel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+        
+        # register_buffer ensures kernels move to GPU automatically with the model
+        self.register_buffer('sobel_x', sobel_x)
+        self.register_buffer('sobel_y', sobel_y)
+
+    def _get_edges(self, x):
+        """Extracts edge maps from probability maps using Sobel filters."""
+        b, c, h, w = x.shape
+        # Use .reshape instead of .view to handle non-contiguous tensors from .permute()
+        x_reshaped = x.reshape(b * c, 1, h, w)
+        
+        edge_x = F.conv2d(x_reshaped, self.sobel_x, padding=1)
+        edge_y = F.conv2d(x_reshaped, self.sobel_y, padding=1)
+        
+        # Magnitude of gradient
+        edges = torch.sqrt(edge_x**2 + edge_y**2 + 1e-6)
+        return edges.reshape(b, c, h, w)
+
+    def _ssim_loss(self, pred, target):
+        """Structural Similarity Loss (simplified for segmentation)."""
+        window_size = 11
+        channel = pred.size(1)
+        sigma = 1.5
+        gauss = torch.arange(window_size, dtype=torch.float32, device=pred.device) - window_size // 2
+        gauss = torch.exp(-(gauss**2) / (2 * sigma**2))
+        gauss = gauss / gauss.sum()
+        
+        _1D_window = gauss.unsqueeze(1)
+        window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
+        window = window.expand(channel, 1, window_size, window_size).contiguous().type_as(pred)
+
+        # Compute local means (mu)
+        mu1 = F.conv2d(pred, window, padding=window_size//2, groups=channel)
+        mu2 = F.conv2d(target, window, padding=window_size//2, groups=channel)
+
+        mu1_sq, mu2_sq, mu1_mu2 = mu1.pow(2), mu2.pow(2), mu1 * mu2
+
+        # Compute local variances (sigma)
+        sigma1_sq = F.conv2d(pred * pred, window, padding=window_size//2, groups=channel) - mu1_sq
+        sigma2_sq = F.conv2d(target * target, window, padding=window_size//2, groups=channel) - mu2_sq
+        sigma12 = F.conv2d(pred * target, window, padding=window_size//2, groups=channel) - mu1_mu2
+
+        # SSIM constants
+        C1, C2 = 0.01 ** 2, 0.03 ** 2
+
+        ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / \
+                   ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+
+        return 1 - ssim_map.mean()
+
+    def forward(self, logits, targets):
+        """
+        logits: (B, C, H, W)
+        targets: (B, H, W) -> LongTensor
+        """
+        # 1. Prepare Inputs
+        probs = F.softmax(logits, dim=1)
+        # Applying .contiguous() here helps avoid issues in downstream view operations
+        one_hot_targets = F.one_hot(targets, num_classes=self.num_classes).permute(0, 3, 1, 2).float().contiguous()
+
+        # --- COMPONENT 1: Poly Loss ---
+        pt = torch.sum(probs * one_hot_targets, dim=1)
+        ce_loss = F.cross_entropy(logits, targets, reduction='none')
+        poly_loss = (ce_loss + 1.0 * (1 - pt)).mean()
+
+        # --- COMPONENT 2: SSIM ---
+        ssim_loss_val = self._ssim_loss(probs, one_hot_targets)
+
+        # --- COMPONENT 3: Edge Loss ---
+        pred_edges = self._get_edges(probs)
+        target_edges = self._get_edges(one_hot_targets)
+        edge_loss = F.l1_loss(pred_edges, target_edges)
+
+        # --- TOTAL ---
+        return (self.w_poly * poly_loss) + (self.w_ssim * ssim_loss_val) + (self.w_edge * edge_loss)
+    
 if __name__=="__main__":
 
     ## Testing configs.

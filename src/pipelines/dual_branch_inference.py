@@ -14,9 +14,9 @@ from shapely.geometry import Polygon as ShapelyPoly
 # Configuration & Imports
 # ---------------------------------------------------
 
-# Try importing your model
+# Try importing your NEW model
 try:
-    from src.components.dev_models.Novel_V2 import get_model
+    from src.components.dev_models.Novel_v1.model import get_model
 except ImportError:
     print("[WARNING] Could not import get_model. Ensure you are in the correct directory.")
 
@@ -47,24 +47,6 @@ def preprocess_image(image_path, device):
     img = Image.open(image_path).convert("RGB")
     tensor = tf(img).unsqueeze(0).to(device)
     return img, tensor
-
-def preprocess_gt_mask(mask_path, color_to_id):
-    """Convert RGB GT mask -> class-id mask"""
-    if not os.path.exists(mask_path):
-        return None 
-        
-    mask = Image.open(mask_path).convert("RGB")
-    mask = mask.resize((224, 224), Image.NEAREST)
-    mask_np = np.array(mask)
-
-    h, w, _ = mask_np.shape
-    gt_id_mask = np.zeros((h, w), dtype=np.int64)
-
-    for color, idx in color_to_id.items():
-        match = np.all(mask_np == np.array(color), axis=-1)
-        gt_id_mask[match] = idx
-
-    return gt_id_mask
 
 # ---------------------------------------------------
 # Refined Polygon Extraction
@@ -114,39 +96,27 @@ def refine_and_extract_polygons(pred_mask, upscale_factor=4, min_area=20, epsilo
     return polygons, refined_mask_vis
 
 # ---------------------------------------------------
-# 3D Reconstruction Logic (New)
+# 3D Reconstruction Logic
 # ---------------------------------------------------
 
 def generate_3d_scene(polygons, output_filename="output_floorplan.obj", extrusion_heights=None):
-    """
-    Converts 2D polygons into a 3D scene using Trimesh.
-    
-    Args:
-        polygons: List of dicts with 'class_id' and 'points'.
-        output_filename: Path to save the .obj file.
-        extrusion_heights: Dict mapping class_id -> height (float).
-    """
     print(f"[INFO] Generating 3D Scene...")
     
     meshes = []
     
-    # Default heights if not provided (Adjust these based on your specific class IDs)
-    # Example: Class 1 (Wall) -> 50 units, Class 2 (Window) -> 20 units
     if extrusion_heights is None:
         extrusion_heights = {
-            1: 40.0, # Example: Wall
-            2: 15.0, # Example: Window
-            3: 10.0, # Example: Door
-            4: 5.0   # Example: Object
+            1: 40.0, 
+            2: 15.0, 
+            3: 10.0, 
+            4: 5.0   
         }
 
     for poly in polygons:
         cls_id = poly["class_id"]
         points = poly["points"]
 
-        # 1. Coordinate System Adjustment
-        # Images have (0,0) at top-left. 3D usually has Y up.
-        # We flip Y so the floorplan doesn't look mirrored/upside-down in 3D tools.
+        # 1. Coordinate System Adjustment (Flip Y)
         points_3d = points.copy()
         points_3d[:, 1] = -points_3d[:, 1] 
 
@@ -154,42 +124,35 @@ def generate_3d_scene(polygons, output_filename="output_floorplan.obj", extrusio
         try:
             shapely_poly = ShapelyPoly(points_3d)
             if not shapely_poly.is_valid:
-                shapely_poly = shapely_poly.buffer(0) # Attempt self-repair
+                shapely_poly = shapely_poly.buffer(0) 
         except Exception as e:
             print(f"[WARN] Skipping invalid polygon: {e}")
             continue
 
         # 3. Determine Height
-        # Default to 10.0 if class not in config
         height = extrusion_heights.get(cls_id, 10.0) 
 
         # 4. Extrude
-        # Trimesh makes this very easy
-        mesh = trimesh.creation.extrude_polygon(shapely_poly, height)
-        
-        # 5. Styling
-        # Assign a random color or specific color based on class
-        # (Here we just use random for distinctness)
-        mesh.visual.face_colors = trimesh.visual.random_color()
-        
-        meshes.append(mesh)
+        try:
+            mesh = trimesh.creation.extrude_polygon(shapely_poly, height)
+            # Random color for visualization
+            mesh.visual.face_colors = trimesh.visual.random_color()
+            meshes.append(mesh)
+        except Exception as e:
+             print(f"[WARN] Failed to extrude polygon class {cls_id}: {e}")
 
     if not meshes:
-        print("[WARNING] No meshes created. Check polygon extraction.")
+        print("[WARNING] No meshes created.")
         return
 
-    # 6. Combine all meshes into one scene
+    # 5. Combine and Export
     scene = trimesh.Scene(meshes)
-    
-    # 7. Export
-    # You can export as 'obj', 'glb', 'stl', etc.
     scene.export(output_filename)
     print(f"[SUCCESS] 3D model saved to: {output_filename}")
-    
-    return scene
+
 
 # ---------------------------------------------------
-# Inference Pipeline
+# Inference Pipeline (Updated for Dual Branch)
 # ---------------------------------------------------
 
 def run_pipeline(config):
@@ -199,56 +162,89 @@ def run_pipeline(config):
     color_to_id, id_to_color = load_color_to_id(config["pickle"])
     num_classes = len(color_to_id)
     
-    # Define Heights based on your specific classes (Update this map!)
-    # Look at your id_to_color to know which ID is which object
-    # For now, I'm setting heuristic values
-    HEIGHT_MAP = {
-        i: 20.0 for i in range(num_classes)
-    }
-    # Example: If you know ID 1 is Wall, make it taller
+    # Define Heights (Example: Class 0 is background, 1 is Wall)
+    HEIGHT_MAP = {i: 20.0 for i in range(num_classes)}
     HEIGHT_MAP[1] = 50.0 
 
     # 2. Load Model
     model = get_model(image_channel=3, number_of_class=num_classes)
-    checkpoint = torch.load(config["model"], map_location=device)
-    state_dict = checkpoint["model"] if (isinstance(checkpoint, dict) and "model" in checkpoint) else checkpoint
-    model.load_state_dict(state_dict)
+    
+    # Load checkpoint safely
+    try:
+        checkpoint = torch.load(config["model"], map_location=device)
+        state_dict = checkpoint["model"] if (isinstance(checkpoint, dict) and "model" in checkpoint) else checkpoint
+        model.load_state_dict(state_dict)
+    except Exception as e:
+        print(f"[ERROR] Failed to load weights: {e}")
+        return
+
     model.to(device).eval()
 
     # 3. Preprocess
     print(f"[INFO] Processing: {config['image']}")
     original_img_pil, input_tensor = preprocess_image(config['image'], device)
 
-    # 4. Inference
+    # 4. Inference (Dual Branch)
     with torch.no_grad():
-        logits = model(input_tensor)
-        pred_mask = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy()
+        # Get both outputs
+        seg_logits, edge_logits = model(input_tensor)
+        
+        # Process Semantic Segmentation
+        seg_prob = torch.softmax(seg_logits, dim=1)
+        seg_mask = torch.argmax(seg_prob, dim=1).squeeze(0).cpu().numpy()
+        
+        # Process Edge Detection
+        edge_prob = torch.sigmoid(edge_logits).squeeze(0).squeeze(0).cpu().numpy()
+        # Binary edge mask (threshold 0.5)
+        edge_mask = (edge_prob > 0.5).astype(np.float32)
 
-    # 5. Polygon Extraction
+    # 5. FUSION LOGIC
+    # We use the edge mask to refine the segmentation.
+    # Areas where edge is high are likely boundaries.
+    # Simple strategy: If edge is detected, force that pixel to background (0) or separate objects.
+    # Here, we will just use the edge mask to visualize for now, 
+    # OR we can subtract edges from the mask to create gaps between touching objects.
+    
+    print("[INFO] Fusing Segmentation and Edge masks...")
+    
+    # Strategy: Mask out pixels that are strong edges to separate touching walls
+    # (Assuming 0 is background)
+    fused_mask = seg_mask.copy()
+    fused_mask[edge_mask == 1] = 0 
+
+    # 6. Polygon Extraction (Using Fused Mask)
     polygons, refined_vis = refine_and_extract_polygons(
-        pred_mask, 
+        fused_mask, 
         upscale_factor=4, 
         min_area=10, 
         epsilon_coeff=0.003
     )
     print(f"[INFO] Extracted {len(polygons)} polygons.")
 
-    # 6. Visualization (2D)
-    fig, ax = plt.subplots(1, 3, figsize=(18, 6))
-    ax[0].imshow(original_img_pil.resize((224, 224)))
-    ax[0].set_title("Input")
-    ax[1].imshow(refined_vis, cmap="tab20")
-    ax[1].set_title("Refined Segmentation")
+    # 7. Visualization (2D)
+    # Updated to show Edge Branch output
+    fig, ax = plt.subplots(1, 4, figsize=(24, 6))
     
-    # Visualizing Polygons
-    ax[2].imshow(original_img_pil.resize((224, 224)))
-    ax[2].set_title("Polygons")
+    ax[0].imshow(original_img_pil.resize((224, 224)))
+    ax[0].set_title("Input Image")
+    
+    ax[1].imshow(seg_mask, cmap="tab20")
+    ax[1].set_title("Raw Segmentation Output")
+
+    ax[2].imshow(edge_mask, cmap="gray")
+    ax[2].set_title("Edge Branch Output")
+    
+    # Overlay polygons on original image
+    ax[3].imshow(original_img_pil.resize((224, 224)))
+    ax[3].set_title("Fused Result & Polygons")
     for poly in polygons:
         p = mpatches.Polygon(poly["points"], fill=True, facecolor='yellow', edgecolor='red', alpha=0.5)
-        ax[2].add_patch(p)
+        ax[3].add_patch(p)
+    
+    plt.tight_layout()
     plt.show()
 
-    # 7. 3D Generation (The new part)
+    # 8. 3D Generation
     output_obj_path = config["output_3d"]
     generate_3d_scene(polygons, output_obj_path, extrusion_heights=HEIGHT_MAP)
 
@@ -256,12 +252,11 @@ def run_pipeline(config):
 # Entry Point
 # ---------------------------------------------------
 if __name__ == "__main__":
-    # UPDATE THESE PATHS
     CONFIG = {
         "image": r"E:\floor-plan-segmentation-and-reconstruction\ttest_floorplan\png-transparent-floor-plan-paper-line-2d-floor-plan-angle-text-rectangle.png",
         "model": "E:/floor-plan-segmentation-and-reconstruction/checkpoints/best.pt",
         "pickle": "./artifacts/processed-data/color_to_class.pkl",
-        "output_3d": "my_floorplan_3d.obj" # Output file name
+        "output_3d": "my_floorplan_3d.obj" 
     }
 
     run_pipeline(CONFIG)

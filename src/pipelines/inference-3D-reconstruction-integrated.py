@@ -16,7 +16,7 @@ from shapely.geometry import Polygon as ShapelyPoly
 
 # Try importing your model
 try:
-    from src.components.dev_models.Novel_V2 import get_model
+    from src.components.dev_models.Novel_v1.model import get_model
 except ImportError:
     print("[WARNING] Could not import get_model. Ensure you are in the correct directory.")
 

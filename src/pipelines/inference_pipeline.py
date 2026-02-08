@@ -224,7 +224,7 @@ import pickle
 import os
 
 # Your model loader
-from src.components.model_mod_3 import get_model
+from src.components.legacy_models.model_mod_3 import get_model
 
 
 # ---------------------------------------------------
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     CONFIG = {
         "image": r"E:\floor-plan-segmentation-and-reconstruction\artifacts\processed-data\train\55\IIa_AP3401.png",
         "mask":  r"E:\floor-plan-segmentation-and-reconstruction\artifacts\processed-data\train\55\IIa_AP3401_gt_5.png",
-        "model": r"E:\floor-plan-segmentation-and-reconstruction\training_results\trial-6\Best.pt",
+        "model": r"E:\floor-plan-segmentation-and-reconstruction\training_results\trial-2\Best.pt",
         "pickle": "./artifacts/processed-data/color_to_class.pkl"
     }
 

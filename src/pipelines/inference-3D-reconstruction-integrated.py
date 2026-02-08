@@ -16,7 +16,7 @@ from shapely.geometry import Polygon as ShapelyPoly
 
 # Try importing your model
 try:
-    from src.components.dev_models.Novel_v1.model import get_model
+    from src.components.legacy_models.model_mod_3 import get_model
 except ImportError:
     print("[WARNING] Could not import get_model. Ensure you are in the correct directory.")
 
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     # UPDATE THESE PATHS
     CONFIG = {
         "image": r"E:\floor-plan-segmentation-and-reconstruction\ttest_floorplan\png-transparent-floor-plan-paper-line-2d-floor-plan-angle-text-rectangle.png",
-        "model": "E:/floor-plan-segmentation-and-reconstruction/checkpoints/best.pt",
+        "model": r"E:\floor-plan-segmentation-and-reconstruction\training_results\trial-2\Best.pt",
         "pickle": "./artifacts/processed-data/color_to_class.pkl",
         "output_3d": "my_floorplan_3d.obj" # Output file name
     }

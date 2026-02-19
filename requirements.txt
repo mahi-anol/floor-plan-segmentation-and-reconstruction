@@ -5,3 +5,12 @@ beautifulsoup4
 lxml
 tqdm
 cairosvg
+opencv-python
+# trimesh
+# shapely             ### For 3D reconstruction enable these
+# opencv-python
+# mapbox_earcut
+optuna
+optunahub
+optuna-dashboard
+miseval

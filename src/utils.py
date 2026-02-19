@@ -236,10 +236,10 @@ class model_helpers:
     
 
 
-def saving_model_with_state_and_logs(model,optimizer,results,file="model.pt"):
+def saving_model_with_state_and_logs(model,optimizer,trial_no,results,file="model.pt"):
     try:
-        os.makedirs('checkpoints',exist_ok=True)
-        path=os.path.join('checkpoints',file)
+        os.makedirs(f'checkpoints/trial-{trial_no}',exist_ok=True)
+        path=os.path.join(f'checkpoints/trial-{trial_no}',file)
         contents={
             'model':model.state_dict(),
             'optimizer':optimizer.state_dict(),
@@ -253,7 +253,185 @@ def saving_model_with_state_and_logs(model,optimizer,results,file="model.pt"):
         logging.info(f"Succesfully saved the model artifact at {path}")
 
 
+class ThreeMusketeerLoss(nn.Module):
+    def __init__(self,alpha=None,gemma=0,eps=1e-7,smoth=1e-7,loss_weights=[1,0,0]):
+        super().__init__()
+        self.alpha=alpha if alpha!=None else 1
+        self.gemma=gemma
+        self.eps=eps
+        self.smoth=smoth
+        self.loss_weights=loss_weights
 
+    def forward(self,batch_logits,batch_sample_gt):
+        # ### Cross Entropy for segmentation loss
+        # # batch_logits=torch.randn(size=(3,10,224,224))
+        # print("sample Logit shape: (B,C,H,W) = ",batch_logits.shape)
+        # # print("sample Logit : ",batch_logits)
+        # # batch_sample_gt=torch.randint(low=0,high=10,size=(3,224,224))
+        # print("sample gt shape: (B,H,W) = ",batch_sample_gt.shape)
+        # # print("sample gt : ",batch_sample_gt)
+
+        ### Cross entropy loss
+        batch_logits_max=torch.max(batch_logits,dim=1,keepdim=True)[0] # For neumerical stability ...max across the class dimention. so we should get b,1,224,224
+        # print("t: ", batch_logits_max.shape)
+        shifted_logits=batch_logits-batch_logits_max
+        exp_logits=torch.exp(shifted_logits)
+        exp_logit_sum=torch.sum(exp_logits,dim=1,keepdim=True)
+        softmax=exp_logits/exp_logit_sum 
+        # print("softmax shape: ",softmax.shape)
+        # print("gt shape: ",batch_sample_gt.shape)
+        correct_class_probability=softmax.gather(dim=1,index=batch_sample_gt.unsqueeze(1)).squeeze(1)
+        # print("correct class probability shape: ",correct_class_probability.shape)
+        # print(correct_class_probability)
+        log_probability=torch.log(correct_class_probability+self.eps)
+        cross_entropy_loss=-torch.mean(log_probability)
+        ### cross entropy loss
+
+        ### dice loss
+        batch_sample_gt_one_hot=nn.functional.one_hot(batch_sample_gt,num_classes=batch_logits.shape[1]).permute(0,-1,-3,-2).float()
+        # print("batch sample git hot shape: ",batch_sample_gt_one_hot.shape)
+        intersection=torch.sum(batch_sample_gt_one_hot*softmax,dim=(-2,-1)) # 3,10,224,224 * 3,10,224,224
+        # print("Intersection shape: ",intersection.shape)
+        union=torch.sum(batch_sample_gt_one_hot,dim=(-2,-1))+torch.sum(softmax,dim=(-2,-1))
+
+        dice_coeff=(2*(intersection+self.smoth))/(union+self.smoth)
+        # print("Dice Coeff shape: ",dice_coeff.shape)
+        dice_loss=1-dice_coeff.mean()
+        ### dice loss
+
+        ### Focal LOSS
+        focal_loss= torch.mean(-self.alpha*(1-correct_class_probability)**self.gemma*log_probability)
+        ### Focal LOSS
+        return (self.loss_weights[0] * cross_entropy_loss + self.loss_weights[1] * focal_loss + self.loss_weights[2] * dice_loss)
+    
+class PolyTverskyLoss(nn.Module):
+    def __init__(self, alpha=0.7, beta=0.3, epsilon=1.0, smooth=1e-6, weights=[1.0, 1.0]):
+        super().__init__()
+        self.alpha = alpha
+        self.beta = beta
+        self.epsilon = epsilon
+        self.smooth = smooth
+        self.weights = weights
+
+    def forward(self, logits, targets):
+        num_classes = logits.shape[1]
+        probs = F.softmax(logits, dim=1)
+        
+        # 1. PolyLoss calculation
+        # Use reduction='mean' immediately to get a scalar
+        ce_loss = F.cross_entropy(logits, targets, reduction='none')
+        one_hot_targets = F.one_hot(targets, num_classes=num_classes).permute(0, 3, 1, 2).float()
+        pt = torch.sum(probs * one_hot_targets, dim=1)
+        
+        poly_loss = ce_loss + self.epsilon * (1 - pt)
+        poly_loss = poly_loss.mean() # Result: Scalar
+
+        # 2. Tversky Loss calculation
+        # Summing over Spatial dimensions (H, W)
+        tp = torch.sum(probs * one_hot_targets, dim=(0, 2, 3))
+        fp = torch.sum(probs * (1 - one_hot_targets), dim=(0, 2, 3))
+        fn = torch.sum((1 - probs) * one_hot_targets, dim=(0, 2, 3))
+        
+        # This gives a tversky index per class
+        tversky_index = (tp + self.smooth) / (tp + self.alpha * fp + self.beta * fn + self.smooth)
+        
+        # IMPORTANT: Mean over classes to return a single SCALAR
+        tversky_loss = (1 - tversky_index).mean() 
+
+        # Final scalar combination
+        return (self.weights[0] * poly_loss) + (self.weights[1] * tversky_loss)
+    
+class ArConsistencyLoss(nn.Module):
+    def __init__(self, 
+                 w_poly=1.0, 
+                 w_ssim=0.5, 
+                 w_edge=0.5, 
+                 num_classes=2):
+        super().__init__()
+        self.w_poly = w_poly
+        self.w_ssim = w_ssim
+        self.w_edge = w_edge
+        self.num_classes = num_classes
+        
+        # Sobel Kernels for Edge Detection
+        sobel_x = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+        sobel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=torch.float32).view(1, 1, 3, 3)
+        
+        # register_buffer ensures kernels move to GPU automatically with the model
+        self.register_buffer('sobel_x', sobel_x)
+        self.register_buffer('sobel_y', sobel_y)
+
+    def _get_edges(self, x):
+        """Extracts edge maps from probability maps using Sobel filters."""
+        b, c, h, w = x.shape
+        # Use .reshape instead of .view to handle non-contiguous tensors from .permute()
+        x_reshaped = x.reshape(b * c, 1, h, w)
+        
+        edge_x = F.conv2d(x_reshaped, self.sobel_x, padding=1)
+        edge_y = F.conv2d(x_reshaped, self.sobel_y, padding=1)
+        
+        # Magnitude of gradient
+        edges = torch.sqrt(edge_x**2 + edge_y**2 + 1e-6)
+        return edges.reshape(b, c, h, w)
+
+    def _ssim_loss(self, pred, target):
+        """Structural Similarity Loss (simplified for segmentation)."""
+        window_size = 11
+        channel = pred.size(1)
+        sigma = 1.5
+        gauss = torch.arange(window_size, dtype=torch.float32, device=pred.device) - window_size // 2
+        gauss = torch.exp(-(gauss**2) / (2 * sigma**2))
+        gauss = gauss / gauss.sum()
+        
+        _1D_window = gauss.unsqueeze(1)
+        window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
+        window = window.expand(channel, 1, window_size, window_size).contiguous().type_as(pred)
+
+        # Compute local means (mu)
+        mu1 = F.conv2d(pred, window, padding=window_size//2, groups=channel)
+        mu2 = F.conv2d(target, window, padding=window_size//2, groups=channel)
+
+        mu1_sq, mu2_sq, mu1_mu2 = mu1.pow(2), mu2.pow(2), mu1 * mu2
+
+        # Compute local variances (sigma)
+        sigma1_sq = F.conv2d(pred * pred, window, padding=window_size//2, groups=channel) - mu1_sq
+        sigma2_sq = F.conv2d(target * target, window, padding=window_size//2, groups=channel) - mu2_sq
+        sigma12 = F.conv2d(pred * target, window, padding=window_size//2, groups=channel) - mu1_mu2
+
+        # SSIM constants
+        C1, C2 = 0.01 ** 2, 0.03 ** 2
+
+        ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / \
+                   ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+
+        return 1 - ssim_map.mean()
+
+    def forward(self, logits, targets):
+        """
+        logits: (B, C, H, W)
+        targets: (B, H, W) -> LongTensor
+        """
+        # 1. Prepare Inputs
+        probs = F.softmax(logits, dim=1)
+        # Applying .contiguous() here helps avoid issues in downstream view operations
+        one_hot_targets = F.one_hot(targets, num_classes=self.num_classes).permute(0, 3, 1, 2).float().contiguous()
+
+        # --- COMPONENT 1: Poly Loss ---
+        pt = torch.sum(probs * one_hot_targets, dim=1)
+        ce_loss = F.cross_entropy(logits, targets, reduction='none')
+        poly_loss = (ce_loss + 1.0 * (1 - pt)).mean()
+
+        # --- COMPONENT 2: SSIM ---
+        ssim_loss_val = self._ssim_loss(probs, one_hot_targets)
+
+        # --- COMPONENT 3: Edge Loss ---
+        pred_edges = self._get_edges(probs)
+        target_edges = self._get_edges(one_hot_targets)
+        edge_loss = F.l1_loss(pred_edges, target_edges)
+
+        # --- TOTAL ---
+        return (self.w_poly * poly_loss) + (self.w_ssim * ssim_loss_val) + (self.w_edge * edge_loss)
+    
 if __name__=="__main__":
 
     ## Testing configs.
@@ -302,3 +480,14 @@ if __name__=="__main__":
     max_pool_2D=same_padded_max_pool(kernel_size=(3,3),stride=(2,2))
     output=max_pool_2D(inputs)
     print('max pool dynamic: ',output.shape)
+
+    batch_logits=torch.randn(size=(3,10,224,224))
+    print("sample Logit shape: (B,C,H,W) = ",batch_logits.shape)
+    # print("sample Logit : ",batch_logits)
+    batch_sample_gt=torch.randint(low=0,high=10,size=(3,224,224))
+    print("sample gt shape: ",batch_sample_gt.shape)
+    # print("sample gt : ",batch_sample_gt)
+
+    loss_fn=ThreeMusketeerLoss(loss_weights=[0,1,1])
+    print("four_musquiter_loss_test: ",loss_fn(batch_logits,batch_sample_gt))
+

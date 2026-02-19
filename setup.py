@@ -24,7 +24,7 @@ setup(
         "Programing Language :: Python >=3.12.7",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.12",
+    python_requires=">=3.10",
     install_requires=required,
     extras_require={
         'dev':[

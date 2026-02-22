@@ -2,11 +2,12 @@ import random
 import numpy as np
 import torch
 # from src.pipelines.data_pipeline import get_train_test_loader
-from src.pipelines.data_pipeline_cubicasa import get_train_test_loader
+from src.pipelines.data_pipeline.data_pipeline_cubicasa import get_train_test_loader
 # from src.components.model_mod_3 import get_model
 # from src.components.model.model import get_model
 # from src.components.dev_models.MacuNet.model import get_model
 from src.components.dev_models.Novel_v1.model import get_model
+from torch.optim.lr_scheduler import ReduceLROnPlateau,StepLR
 from tqdm import tqdm
 import torch
 import logging
@@ -37,14 +38,20 @@ model=get_model(image_channel=3,number_of_class=2)
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
 model.to(device)
-optimizer=optim.Adam(model.parameters(),lr=1e-4,weight_decay=1e-4)
+optimizer=optim.Adam(model.parameters(),lr=1e-5,weight_decay=1e-4)
 # loss_fn=nn.CrossEntropyLoss()
 # loss_fn=MulticlassDiceCELoss()
-# loss_fn=ThreeMusketeerLoss(loss_weights=[0.5,0.5,1.0])
+loss_fn=ThreeMusketeerLoss(loss_weights=[0.5,0.5,1.0])
 # loss_fn = PolyTverskyLoss(alpha=0.7, beta=0.3)
-loss_fn=ArConsistencyLoss()
+# loss_fn=ArConsistencyLoss()
 loss_fn.to(device)
 
+
+scheduler = StepLR(
+    optimizer,
+    step_size=5,  # decrease every 5 epochs
+    gamma=10     # multiply LR by 10 or 0.1
+)
 
 def train_step(model,data_loader,loss_fn,optimizer,device):
     model.train()
@@ -118,8 +125,13 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
         "test_accuracy":[],
     }
     for epoch in range(epochs):
+        current_lr = optimizer.param_groups[0]['lr']
         train_accuracy,train_loss=train_step(model,train_dataloader,loss_fn,optimizer,device)
         test_accuracy,test_loss=test_step(model,test_dataloader,loss_fn,device)
+        scheduler.step()
+        updated_lr = optimizer.param_groups[0]['lr']
+        if updated_lr!=current_lr:
+            logging.info(f"Learning rate has been updated from {current_lr} to {updated_lr}")
         logging.info(f'Epoch: {epoch+1} | Train loss: {train_loss:.4f} | Train acc: {train_accuracy:.4f} | Test loss: {test_loss:.4f} | Test acc: {test_accuracy:.4f}')
         results['train_accuracy'].append(train_accuracy)
         results['train_loss'].append(train_loss)
@@ -156,7 +168,7 @@ train(model=model
     ,test_dataloader=test_dataset_loader
     ,optimizer=optimizer
     ,loss_fn=loss_fn
-    ,epochs=50
+    ,epochs=10
     ,device=device
     ,checkpoint_saving_gap=1
     ,resume_from_previous_state=False,

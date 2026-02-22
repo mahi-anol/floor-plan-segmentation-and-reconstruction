@@ -1,6 +1,6 @@
 import torch
 from src.pipelines.data_pipeline import  get_train_test_loader
-from src.components.model_mod_3 import get_model
+from src.components.legacy_models.model_mod_3 import get_model
 from src.components.eval_metrices import get_eval_metrices_outcome
 import pandas as pd
 from dataclasses import dataclass

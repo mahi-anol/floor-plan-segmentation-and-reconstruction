@@ -138,10 +138,17 @@ class MULTI_UNIT_FLOOR_SEGMENT_MODEL(nn.Module):
 
         return self.final(out1)
 
-def get_model(image_channel=3,number_of_class=10):
+def get_model(image_channel=3,number_of_class=10,deploy=False):
     net = MULTI_UNIT_FLOOR_SEGMENT_MODEL(image_channel, number_of_class)
+    if deploy:
+        for m in net.modules():
+            if isinstance(m, ACBBlock):
+                # Ensure the block isn't already in deploy mode to avoid errors
+                if hasattr(m, 'switch_to_deploy') and not m.deploy:
+                    m.switch_to_deploy()
     return net
     
+
 
 if __name__ == '__main__':
     model = MULTI_UNIT_FLOOR_SEGMENT_MODEL(3, 2)

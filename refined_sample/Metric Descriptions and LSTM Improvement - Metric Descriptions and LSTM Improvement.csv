@@ -1,0 +1,19 @@
+Metric,Description
+TP (True Positive),The number of positive instances correctly predicted by the model.
+TN (True Negative),The number of negative instances correctly predicted by the model.
+FP (False Positive),The number of negative instances incorrectly labeled as positive (Type I Error).
+FN (False Negative),The number of positive instances incorrectly labeled as negative (Type II Error).
+DSC (Dice Score),The harmonic mean of Precision and Recall; measures the overlap between prediction and ground truth.
+IoU (Intersection over Union),The ratio of the overlap area to the total area of both prediction and ground truth combined.
+ACC (Accuracy),The ratio of total correct predictions (both positive and negative) to the total number of cases.
+BACC (Balanced Accuracy),The arithmetic mean of Sensitivity and Specificity; useful for datasets with class imbalance.
+ARI (Adjusted Rand Index),"A measure of similarity between two data groupings, adjusted for the probability of matching by chance."
+AUC (Area Under Curve),The probability that the model ranks a random positive example higher than a random negative example.
+KAP (Cohen’s Kappa),"A statistic that measures inter-rater agreement for categorical items, accounting for agreement by chance."
+Sensitivity (Recall),The proportion of actual positives that were correctly identified by the model.
+Specificity,The proportion of actual negatives that were correctly identified by the model.
+PREC (Precision),The proportion of positive identifications that were actually correct.
+VS (Volumetric Similarity),Compares the volume of predicted vs. ground truth segments without regard for their spatial overlap.
+MCC (Matthews Correlation Coefficient),A correlation coefficient between observed and predicted binary classifications; balances all four confusion matrix quadrants.
+nMCC (Normalized MCC),The MCC score rescaled (usually to a 0 to 1 range) to allow for easier comparison with other metrics.
+aMCC (Adjusted MCC),A modified version of MCC designed to provide a more robust score in cases of extreme class imbalance.

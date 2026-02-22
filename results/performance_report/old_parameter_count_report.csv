@@ -1,0 +1,4 @@
+Component,Parameter_Count,Percentage_of_Total
+Base Segmentation Model,"3,181,002",95.23%
+Recurrent LSTM Refiner,"159,362",4.77%
+Total Pipeline,"3,340,364",100.00%

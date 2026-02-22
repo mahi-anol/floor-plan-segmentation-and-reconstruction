@@ -1,7 +1,8 @@
 import random
 import numpy as np
 import torch
-from src.pipelines.data_pipeline import get_train_test_loader
+# from src.pipelines.data_pipeline import get_train_test_loader
+from src.pipelines.data_pipeline_cubicasa import get_train_test_loader
 # from src.components.model_mod_3 import get_model
 # from src.components.model.model import get_model
 # from src.components.dev_models.MacuNet.model import get_model
@@ -155,7 +156,7 @@ train(model=model
     ,test_dataloader=test_dataset_loader
     ,optimizer=optimizer
     ,loss_fn=loss_fn
-    ,epochs=100
+    ,epochs=50
     ,device=device
     ,checkpoint_saving_gap=1
     ,resume_from_previous_state=False,

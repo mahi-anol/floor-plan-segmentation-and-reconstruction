@@ -173,7 +173,7 @@ def run_inference(image_path, base_model_path, refiner_model_path, pickle_path):
 if __name__ == "__main__":
     # --- UPDATE THESE PATHS ---
     CONFIG = {
-        "image": r"E:\floor-plan-segmentation-and-reconstruction\artifacts\augmented\test\4\Ib_RI0501_sommaire.png",
+        "image": r"E:\floor-plan-segmentation-and-reconstruction\artifacts\augmented\train\324\IIa_AP3601.png",
         
         "base_model": r"E:\floor-plan-segmentation-and-reconstruction\training_results\trial-2\Best.pt",
         

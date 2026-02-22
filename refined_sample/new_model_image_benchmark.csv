@@ -1,0 +1,3 @@
+Model_Type,Inference_Time_ms,Peak_RAM_MB
+Segmentation_Only,62.90745735168457,431.9375
+Segmentation_plus_LSTM,252.6528835296631,492.49609375

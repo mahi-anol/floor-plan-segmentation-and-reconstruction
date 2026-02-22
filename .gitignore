@@ -213,3 +213,6 @@ checkpoints/
 cross_entropy_best.pt 
 *.zip
 training_results/
+train/
+test/
+cubicasa_data

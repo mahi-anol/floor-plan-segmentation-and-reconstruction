@@ -1,12 +1,8 @@
 import random
 import numpy as np
 import torch
-# from src.pipelines.data_pipeline import get_train_test_loader
 from src.pipelines.data_pipeline.data_pipeline_cubicasa import get_train_test_loader
-# from src.components.model_mod_3 import get_model
-# from src.components.model.model import get_model
-# from src.components.dev_models.MacuNet.model import get_model
-from src.components.dev_models.Novel_v1.model import get_model
+from src.components.dev_models.unet_plus_plus.model import get_model
 from torch.optim.lr_scheduler import ReduceLROnPlateau,StepLR
 from tqdm import tqdm
 import torch
@@ -47,11 +43,11 @@ loss_fn=ThreeMusketeerLoss(loss_weights=[0.5,0.5,1.0])
 loss_fn.to(device)
 
 
-scheduler = StepLR(
-    optimizer,
-    step_size=5,  # decrease every 5 epochs
-    gamma=10     # multiply LR by 10 or 0.1
-)
+# scheduler = StepLR(
+#     optimizer,
+#     step_size=5,  # decrease every 5 epochs
+#     gamma=10     # multiply LR by 10 or 0.1
+# )
 
 def train_step(model,data_loader,loss_fn,optimizer,device):
     model.train()
@@ -92,7 +88,7 @@ def test_step(model,data_loader,loss_fn,device):
         test_loss=test_loss/len(data_loader)
     return test_accuracy,test_loss
 
-def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device,checkpoint_saving_gap,resume_from_previous_state,exp_no):
+def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device,checkpoint_saving_gap,resume_from_previous_state,exp):
 
     ### Loading Prev states
     logging.info(f"Starting training using : {device}")
@@ -128,8 +124,6 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
         current_lr = optimizer.param_groups[0]['lr']
         train_accuracy,train_loss=train_step(model,train_dataloader,loss_fn,optimizer,device)
         test_accuracy,test_loss=test_step(model,test_dataloader,loss_fn,device)
-        scheduler.step()
-        updated_lr = optimizer.param_groups[0]['lr']
         logging.info(f'Epoch: {epoch+1} | Train loss: {train_loss:.4f} | Train acc: {train_accuracy:.4f} | Test loss: {test_loss:.4f} | Test acc: {test_accuracy:.4f}')
         results['train_accuracy'].append(train_accuracy)
         results['train_loss'].append(train_loss)
@@ -137,9 +131,7 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
         results['test_loss'].append(test_loss)
          # Save checkpoint every nth epoch
         if (epoch + 1) % checkpoint_saving_gap == 0:
-            # It's good practice to reflect the loss type in the checkpoint name if it differs,
-            # but based on the overall script, this engine is specifically for cross_entropy.
-            saving_model_with_state_and_logs(model, optimizer,exp_no, results, f"Epoch-{epoch+1}_trained_model.pt")
+            saving_model_with_state_and_logs(model, optimizer,exp, results, f"Epoch-{epoch+1}_trained_model.pt")
             logging.info(f"Saved epoch checkpoint at epoch {epoch+1}")
         # Save best model based on test accuracy
         if test_accuracy > best_test_accuracy:
@@ -150,14 +142,16 @@ def train(model,train_dataloader,test_dataloader,optimizer,loss_fn,epochs,device
             # A shallow copy is usually sufficient if saving_model_with_state_and_logs doesn't modify it.
             # Using slice [:] creates a shallow copy of the lists within results.
             current_results_for_best = {k: v[:] for k, v in results.items()} 
-            saving_model_with_state_and_logs(model, optimizer,exp_no, current_results_for_best, "Best.pt")
-        
-        if updated_lr!=current_lr:
-            logging.info(f"Learning rate has been updated from {current_lr} to {updated_lr}")
+            saving_model_with_state_and_logs(model, optimizer,exp, current_results_for_best, "Best.pt")
+
+        # scheduler.step()
+        # updated_lr = optimizer.param_groups[0]['lr']
+        # if updated_lr!=current_lr:
+        #     logging.info(f"Learning rate has been updated from {current_lr} to {updated_lr}")
 
     # After the training loop finishes, save the last model
     logging.info("Saving last trained model @ ./models")
-    saving_model_with_state_and_logs(model, optimizer,exp_no, results, "Last.pt")
+    saving_model_with_state_and_logs(model, optimizer,exp, results, "Last.pt")
 
 
 
@@ -169,11 +163,9 @@ train(model=model
     ,test_dataloader=test_dataset_loader
     ,optimizer=optimizer
     ,loss_fn=loss_fn
-    ,epochs=10
+    ,epochs=20
     ,device=device
     ,checkpoint_saving_gap=1
     ,resume_from_previous_state=False,
-    exp_no=3
+    exp="unetpp"
     )
-
-

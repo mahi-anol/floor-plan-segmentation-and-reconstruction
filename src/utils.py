@@ -236,10 +236,10 @@ class model_helpers:
     
 
 
-def saving_model_with_state_and_logs(model,optimizer,trial_no,results,file="model.pt"):
+def saving_model_with_state_and_logs(model,optimizer,trial,results,file="model.pt"):
     try:
-        os.makedirs(f'checkpoints/trial-{trial_no}',exist_ok=True)
-        path=os.path.join(f'checkpoints/trial-{trial_no}',file)
+        os.makedirs(f'checkpoints/{trial}',exist_ok=True)
+        path=os.path.join(f'checkpoints/{trial}',file)
         contents={
             'model':model.state_dict(),
             'optimizer':optimizer.state_dict(),

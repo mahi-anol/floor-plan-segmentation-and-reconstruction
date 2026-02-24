@@ -27,7 +27,7 @@ if not os.path.exists('./artifacts/augmented'):
     data_augmentation.run_augmentation()
 
 # Dataset
-train_dataset_loader,test_dataset_loader=get_train_test_loader(batch_size=16)
+train_dataset_loader,test_dataset_loader=get_train_test_loader(batch_size=8)
 # Model
 model=get_model(image_channel=3,number_of_class=2)
 

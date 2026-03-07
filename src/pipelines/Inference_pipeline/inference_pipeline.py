@@ -224,7 +224,7 @@ import pickle
 import os
 
 # Your model loader
-from src.components.legacy_models.model_mod_3 import get_model
+from src.components.dev_models.unet_plus_plus.model import get_model
 
 
 # ---------------------------------------------------
@@ -263,6 +263,11 @@ def preprocess_gt_mask(mask_path, color_to_id):
     h, w, _ = mask_np.shape
     gt_id_mask = np.zeros((h, w), dtype=np.int64)
 
+
+    color_to_id = {
+        (0, 0, 0): 0,        # Background
+        (255, 255, 255): 1   # Wall
+    }
     for color, idx in color_to_id.items():
         match = np.all(mask_np == np.array(color), axis=-1)
         gt_id_mask[match] = idx
@@ -334,9 +339,9 @@ def run_inference(
 
 if __name__ == "__main__":
     CONFIG = {
-        "image": r"E:\floor-plan-segmentation-and-reconstruction\artifacts\processed-data\train\55\IIa_AP3401.png",
-        "mask":  r"E:\floor-plan-segmentation-and-reconstruction\artifacts\processed-data\train\55\IIa_AP3401_gt_5.png",
-        "model": r"E:\floor-plan-segmentation-and-reconstruction\training_results\trial-2\Best.pt",
+        "image": r"E:\floor-plan-segmentation-and-reconstruction\cubicasa_data\train\33\original_image.png",
+        "mask":  r"E:\floor-plan-segmentation-and-reconstruction\cubicasa_data\train\33\mask_output.png",
+        "model": r"E:\floor-plan-segmentation-and-reconstruction\checkpoints\unetpp\unetpp.pt",
         "pickle": "./artifacts/processed-data/color_to_class.pkl"
     }
 
